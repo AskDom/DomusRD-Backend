@@ -16,8 +16,8 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "DomusRD API funcionando 🏠" });
 });
 
-// ── RUTAS (se agregarán en los siguientes pasos) ───────────────────────
-// app.use("/api/auth", require("./routes/auth.routes"));
+// ── RUTAS ───────────────────────────────────────────────────────────────
+app.use("/api/auth", require("./routes/auth.routes"));
 // app.use("/api/properties", require("./routes/properties.routes"));
 // app.use("/api/messages", require("./routes/messages.routes"));
 
