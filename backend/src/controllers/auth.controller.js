@@ -1,86 +1,72 @@
-const bcrypt = require("bcryptjs");
-const prisma = require("../config/prisma");
-const { generateToken } = require("../utils/jwt");
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
+const prisma = new PrismaClient();
 
-// Quita el password antes de enviar el usuario al frontend
-function sanitizeUser(user) {
-  const { password, ...rest } = user;
-  return rest;
-}
-
-// POST /api/auth/register
-async function register(req, res) {
+// 1. REGISTRO DE USUARIOS
+const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { email, password, name, role } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "Nombre, correo y contraseña son requeridos" });
-    }
-
-    const finalRole = VALID_ROLES.includes(role) ? role : "CLIENTE";
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return res.status(409).json({ error: "Ya existe una cuenta con ese correo" });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'El correo ya está registrado.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role: finalRole },
+    // Crear el usuario en la base de datos
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+        // Si mandan un rol, lo pasa a minúsculas. Si no, no envía nada para que Postgres use el default
+        ...(role ? { role: role.toLowerCase() } : {})
+      },
     });
 
-    const token = generateToken(user);
-
-    res.status(201).json({ user: sanitizeUser(user), token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al registrar usuario" });
+    res.status(201).json({ message: 'Usuario creado con éxito', userId: newUser.id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error en el servidor al registrar usuario.' });
   }
-}
+};
 
-// POST /api/auth/login
-async function login(req, res) {
+// 2. LOGIN DE USUARIOS
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Correo y contraseña son requeridos" });
-    }
-
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(401).json({ error: "Correo o contraseña incorrectos" });
+      return res.status(400).json({ error: 'Credenciales incorrectas.' });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: "Correo o contraseña incorrectos" });
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: 'Credenciales incorrectas.' });
     }
 
-    const token = generateToken(user);
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET || 'secret_fallback',
+      { expiresIn: '8h' }
+    );
 
-    res.json({ user: sanitizeUser(user), token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al iniciar sesión" });
+    res.json({
+      message: 'Login exitoso',
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error en el servidor al iniciar sesión.' });
   }
-}
+};
 
-// GET /api/auth/me
-async function me(req, res) {
-  try {
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-    if (!user) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
-    }
-    res.json({ user: sanitizeUser(user) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error al obtener el usuario" });
-  }
-}
-
-module.exports = { register, login, me };
+module.exports = {
+  register,
+  login
+};

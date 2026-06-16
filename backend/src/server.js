@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const path = require("path"); // <-- 1. Añadimos esto aquí arriba
 
 const app = express();
 
@@ -17,7 +18,14 @@ app.get("/api/health", (req, res) => {
 });
 
 // ── RUTAS ───────────────────────────────────────────────────────────────
-app.use("/api/auth", require("./routes/auth.routes"));
+// Ruta de Autenticación
+app.use("/api/auth", require(path.join(__dirname, "routes", "authRoutes.js")));
+
+// ¡ACTIVADA! Ruta de Propiedades (usando path.join para evitar fallos de rutas)
+app.use("/api/properties", require(path.join(__dirname, "routes", "propertyRoutes.js")));
+
+// app.use("/api/messages", require("./routes/messages.routes"));
+
 // app.use("/api/properties", require("./routes/properties.routes"));
 // app.use("/api/messages", require("./routes/messages.routes"));
 
