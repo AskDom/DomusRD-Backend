@@ -8,13 +8,16 @@ const {
   deleteProperty 
 } = require('../controllers/property.controller');
 
-// Rutas generales
-router.post('/', createProperty);
-router.get('/', getProperties);
+// Importamos el guardián que acabamos de crear
+const { protect } = require('../middlewares/auth.middleware');
 
-// Rutas específicas con ID (Siempre abajo)
+// --- RUTAS PÚBLICAS (Cualquiera las puede ver) ---
+router.get('/', getProperties);
 router.get('/:id', getPropertyById);
-router.put('/:id', updateProperty);    // <-- Para actualizar
-router.delete('/:id', deleteProperty); // <-- Para eliminar
+
+// --- RUTAS PROTEGIDAS (Requieren token válido) ---
+router.post('/', protect, createProperty);   // <-- Guardián activo
+router.put('/:id', protect, updateProperty);   // <-- Guardián activo
+router.delete('/:id', protect, deleteProperty); // <-- Guardián activo
 
 module.exports = router;
