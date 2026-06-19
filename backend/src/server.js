@@ -24,6 +24,7 @@ app.use("/api/auth", require(path.join(__dirname, "routes", "authRoutes.js")));
 
 // Ruta de Propiedades
 app.use("/api/properties", require(path.join(__dirname, "routes", "propertyRoutes.js")));
+app.use("/api/upload",     require(path.join(__dirname, "routes", "uploadRoutes.js")));
 
 // ── 404 NOT FOUND ───────────────────────────────────────────────────────
 app.use((req, res) => {

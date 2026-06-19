@@ -1,23 +1,42 @@
 const express = require('express');
-const router = express.Router();
-const { 
-  createProperty, 
-  getProperties, 
-  getPropertyById, 
-  updateProperty, 
-  deleteProperty 
+const router  = express.Router();
+const {
+  createProperty,
+  getProperties,
+  getPropertyById,
+  updateProperty,
+  deleteProperty,
 } = require('../controllers/property.controller');
 
-// Importamos el guardián que acabamos de crear
-const { protect } = require('../middlewares/auth.middleware');
+const { protect, requireRole } = require('../middlewares/auth.middleware');
 
-// --- RUTAS PÚBLICAS (Cualquiera las puede ver) ---
-router.get('/', getProperties);
+// ── RUTAS PÚBLICAS ────────────────────────────────────────────────────────────
+router.get('/',    getProperties);
 router.get('/:id', getPropertyById);
 
-// --- RUTAS PROTEGIDAS (Requieren token válido) ---
-router.post('/', protect, createProperty);   // <-- Guardián activo
-router.put('/:id', protect, updateProperty);   // <-- Guardián activo
-router.delete('/:id', protect, deleteProperty); // <-- Guardián activo
+// ── RUTAS PROTEGIDAS ──────────────────────────────────────────────────────────
+// Solo VENDEDOR y AGENTE pueden crear propiedades
+router.post(
+  '/',
+  protect,
+  requireRole('VENDEDOR', 'AGENTE'),
+  createProperty
+);
+
+// Solo el dueño puede editar (la verificación de dueño está en el controller)
+router.put(
+  '/:id',
+  protect,
+  requireRole('VENDEDOR', 'AGENTE'),
+  updateProperty
+);
+
+// Solo el dueño puede eliminar (la verificación de dueño está en el controller)
+router.delete(
+  '/:id',
+  protect,
+  requireRole('VENDEDOR', 'AGENTE'),
+  deleteProperty
+);
 
 module.exports = router;

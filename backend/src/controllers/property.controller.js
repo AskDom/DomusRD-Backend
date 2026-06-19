@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { isOwner } = require('../middlewares/auth.middleware');
 const prisma = new PrismaClient();
 
 // 1. CREAR UNA PROPIEDAD
@@ -6,37 +7,55 @@ const createProperty = async (req, res) => {
   try {
     const { 
       title, description, price, city, 
-      lat, lng, rooms, baths, parking, type, userId 
+      lat, lng, rooms, baths, parking, type, status, images
     } = req.body;
+
+    // Aceptamos tanto "userId" como "publishedById" por compatibilidad con el frontend
+    const userId = req.body.userId || req.body.publishedById;
+
+    console.log('📦 Body recibido en createProperty:', req.body);
+    console.log('🔑 userId resuelto:', userId);
 
     if (!title || !price || !city || !userId || lat === undefined || lng === undefined) {
       return res.status(400).json({ 
-        error: 'Título, precio, ubicación, ciudad, lat, lng y userId son obligatorios.' 
+        error: 'Título, precio, ciudad, lat, lng y userId son obligatorios.' 
       });
+    }
+
+    // Validar que el userId existe en la BD antes de intentar conectar
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(400).json({ error: `Usuario con id "${userId}" no encontrado.` });
     }
 
     const newProperty = await prisma.property.create({
       data: {
         title,
-        description,
+        description: description || '',
         price: parseFloat(price),
         city,
         lat: parseFloat(lat),
         lng: parseFloat(lng),
-        rooms: parseInt(rooms) || 0,
-        baths: parseInt(baths) || 0,
+        rooms: parseInt(rooms) || 1,
+        baths: parseInt(baths) || 1,
         parking: parseInt(parking) || 0,
-        type,
+        type: type || 'APARTAMENTO',
+        status: status || 'VENTA',
+        images: images || [],
         publishedBy: {
           connect: { id: userId }
         }
       },
+      include: {
+        publishedBy: { select: { id: true, name: true, email: true } }
+      }
     });
 
+    console.log('✅ Propiedad creada:', newProperty.id);
     res.status(201).json({ message: 'Propiedad publicada con éxito', property: newProperty });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error en el servidor al crear la propiedad.' });
+    console.error('❌ Error en createProperty:', error);
+    res.status(500).json({ error: 'Error en el servidor al crear la propiedad.', detail: error.message });
   }
 };
 
@@ -98,6 +117,12 @@ const getPropertyById = async (req, res) => {
 const updateProperty = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Verificar que la propiedad existe y que el usuario es el dueño
+    const existing = await prisma.property.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Propiedad no encontrada.' });
+    if (!isOwner(existing.publishedById, req, res)) return;
+
     const dataToUpdate = { ...req.body };
 
     // Convertimos datos numéricos si es que vienen en la actualización
@@ -131,6 +156,11 @@ const updateProperty = async (req, res) => {
 const deleteProperty = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Verificar que la propiedad existe y que el usuario es el dueño
+    const existing = await prisma.property.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Propiedad no encontrada.' });
+    if (!isOwner(existing.publishedById, req, res)) return;
 
     await prisma.property.delete({
       where: { id },
