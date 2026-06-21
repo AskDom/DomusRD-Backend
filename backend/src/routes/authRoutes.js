@@ -1,9 +1,12 @@
-const express = require('express');
-const router = express.Router();
-// 🔥 Asegúrate de que los nombres coincidan exactamente con lo que exportas
-const { register, login } = require('../controllers/auth.controller'); 
+const express = require("express");
+const path = require("path");
+const { register, login, me } = require(path.join(__dirname, "..", "controllers", "auth.controller.js"));
+const { requireAuth } = require(path.join(__dirname, "..", "middleware", "auth.middleware.js"));
 
-router.post('/register', register);
-router.post('/login', login);
+const router = express.Router();
+
+router.post("/register", register);
+router.post("/login", login);
+router.get("/me", requireAuth, me);
 
 module.exports = router;

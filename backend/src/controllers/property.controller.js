@@ -123,6 +123,7 @@ const updateProperty = async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Propiedad no encontrada.' });
     if (!isOwner(existing.publishedById, req, res)) return;
 
+    console.log('📦 updateProperty body:', req.body);
     const dataToUpdate = { ...req.body };
 
     // Convertimos datos numéricos si es que vienen en la actualización
