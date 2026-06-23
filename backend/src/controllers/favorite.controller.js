@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // GET /api/favorites — obtiene todos los IDs favoritos del usuario autenticado
 const getFavorites = async (req, res) => {

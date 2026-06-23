@@ -62,31 +62,60 @@ const createProperty = async (req, res) => {
 // 2. OBTENER TODAS LAS PROPIEDADES (Con filtro)
 const getProperties = async (req, res) => {
   try {
-    const { city } = req.query;
+    const { city, type, status, minPrice, maxPrice, rooms, search, page = 1, limit = 12 } = req.query;
 
-    const whereClause = city ? {
-      city: {
-        equals: city,
-        mode: 'insensitive'
-      }
-    } : {};
+    const whereClause = {};
 
-    const properties = await prisma.property.findMany({
-      where: whereClause,
-      include: {
-        publishedBy: {
-          select: { id: true, name: true, email: true }
-        }
+    // Búsqueda por texto (título o ciudad)
+    if (search) {
+      whereClause.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { city:  { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (city)     whereClause.city   = { contains: city, mode: 'insensitive' };
+    if (type)     whereClause.type   = type.toUpperCase();
+    if (status)   whereClause.status = status.toUpperCase();
+    if (rooms)    whereClause.rooms  = { gte: parseInt(rooms) };
+    if (minPrice || maxPrice) {
+      whereClause.price = {};
+      if (minPrice) whereClause.price.gte = parseFloat(minPrice);
+      if (maxPrice) whereClause.price.lte = parseFloat(maxPrice);
+    }
+
+    const pageNum  = Math.max(1, parseInt(page));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+    const skip     = (pageNum - 1) * limitNum;
+
+    const [properties, total] = await prisma.$transaction([
+      prisma.property.findMany({
+        where: whereClause,
+        include: { publishedBy: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.property.count({ where: whereClause }),
+    ]);
+
+    res.status(200).json({
+      properties,
+      pagination: {
+        total,
+        page:       pageNum,
+        limit:      limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasMore:    pageNum < Math.ceil(total / limitNum),
       },
-      orderBy: { createdAt: 'desc' }
     });
-
-    res.status(200).json(properties);
   } catch (error) {
-    console.error(error);
+    console.error('getProperties error:', error);
     res.status(500).json({ error: 'Error al obtener las propiedades.' });
   }
 };
+
+
 
 // 3. OBTENER UNA PROPIEDAD POR ID
 const getPropertyById = async (req, res) => {

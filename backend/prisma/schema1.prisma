@@ -116,4 +116,3 @@ model Message {
 
   @@map("messages")
 }
-
