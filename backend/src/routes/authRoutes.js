@@ -1,12 +1,11 @@
 const express = require("express");
-const path = require("path");
-const { register, login, me } = require(path.join(__dirname, "..", "controllers", "auth.controller.js"));
-const { requireAuth } = require(path.join(__dirname, "..", "middleware", "auth.middleware.js"));
+const { register, login, me } = require("../controllers/auth.controller");
+const { protect } = require("../middlewares/auth.middleware");
 
 const router = express.Router();
 
 router.post("/register", register);
-router.post("/login", login);
-router.get("/me", requireAuth, me);
+router.post("/login",    login);
+router.get("/me",        protect, me);
 
 module.exports = router;

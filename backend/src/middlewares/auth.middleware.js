@@ -9,7 +9,7 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_fallback');
       // decoded tiene: { userId, role }  ← el rol viene en MAYÚSCULAS (VENDEDOR, AGENTE, CLIENTE)
-      req.user = decoded;
+      req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
       return next();
     } catch (error) {
       console.log('❌ JWT verify falló:', error.name, '-', error.message);
