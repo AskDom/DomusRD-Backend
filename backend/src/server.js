@@ -24,6 +24,7 @@ app.use("/api/upload",     require(path.join(__dirname, "routes", "uploadRoutes.
 app.use("/api/favorites",  require(path.join(__dirname, "routes", "favoriteRoutes.js")));
 app.use("/api/messages",   require(path.join(__dirname, "routes", "messageRoutes.js")));
 app.use("/api/admin",      require(path.join(__dirname, "routes", "adminRoutes.js")));
+app.use("/api/reviews",    require(path.join(__dirname, "routes", "reviewRoutes.js")));
 
 // ── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {

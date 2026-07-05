@@ -79,6 +79,7 @@ const login = async (req, res) => {
 // 3. GET USUARIO ACTUAL (para mantener sesión al recargar)
 const me = async (req, res) => {
   try {
+    console.log('🔍 me() - req.user:', req.user);
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado" });

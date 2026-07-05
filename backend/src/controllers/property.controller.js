@@ -62,6 +62,7 @@ const createProperty = async (req, res) => {
 // 2. OBTENER TODAS LAS PROPIEDADES (Con filtro)
 const getProperties = async (req, res) => {
   try {
+    console.log("📋 getProperties llamado con query:", req.query);
     const { city, type, status, minPrice, maxPrice, rooms, search, page = 1, limit = 12 } = req.query;
 
     const whereClause = {};
