@@ -25,7 +25,7 @@ const register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const finalRole = VALID_ROLES.includes(role) ? role : "CLIENTE";
+    const finalRole = VALID_ROLES.includes(role?.toUpperCase()) ? role.toUpperCase() : "CLIENTE";
 
     const newUser = await prisma.user.create({
       data: { email, name, password: hashedPassword, role: finalRole }
