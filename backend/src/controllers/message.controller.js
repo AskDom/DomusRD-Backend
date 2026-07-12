@@ -43,6 +43,29 @@ const sendMessage = async (req, res) => {
         property: { select: { id: true, title: true } },
       },
     });
+
+    // ── SOCKET.IO: emitir mensaje en tiempo real al receptor ──────────────────
+    const io = req.app.get("io");
+    if (io) {
+      const normalized = {
+        id:            message.id,
+        fromId:        message.fromId,
+        fromName:      message.from?.name || "Usuario",
+        toId:          message.toId,
+        toName:        message.to?.name   || "Usuario",
+        propertyId:    message.propertyId,
+        propertyTitle: message.property?.title || "",
+        text:          message.text,
+        replyToId:     message.replyToId,
+        createdAt:     message.createdAt,
+        read:          false,
+      };
+      // Emitir a la sala personal del receptor
+      io.to(`user:${toId}`).emit("new_message", normalized);
+      // También al emisor para confirmar (en caso de múltiples pestañas)
+      io.to(`user:${req.user.userId}`).emit("message_sent", normalized);
+    }
+
     res.status(201).json({ message });
   } catch (error) {
     console.error('❌ sendMessage:', error);
