@@ -10,22 +10,14 @@ const createProperty = async (req, res) => {
       lat, lng, rooms, baths, parking, type, status, images
     } = req.body;
 
-    // Aceptamos tanto "userId" como "publishedById" por compatibilidad con el frontend
-    const userId = req.body.userId || req.body.publishedById;
+    // El dueño de la propiedad es siempre el usuario autenticado (del token),
+    // nunca un valor que venga del body — evita que alguien publique a nombre de otro.
+    const userId = req.user.userId;
 
-    console.log('📦 Body recibido en createProperty:', req.body);
-    console.log('🔑 userId resuelto:', userId);
-
-    if (!title || !price || !city || !userId || lat === undefined || lng === undefined) {
-      return res.status(400).json({ 
-        error: 'Título, precio, ciudad, lat, lng y userId son obligatorios.' 
+    if (!title || !price || !city || lat === undefined || lng === undefined) {
+      return res.status(400).json({
+        error: 'Título, precio, ciudad, lat y lng son obligatorios.'
       });
-    }
-
-    // Validar que el userId existe en la BD antes de intentar conectar
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return res.status(400).json({ error: `Usuario con id "${userId}" no encontrado.` });
     }
 
     const newProperty = await prisma.property.create({
