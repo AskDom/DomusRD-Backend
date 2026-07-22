@@ -6,6 +6,11 @@ const http       = require("http");
 const { Server } = require("socket.io");
 const jwt        = require("jsonwebtoken");
 
+if (!process.env.JWT_SECRET) {
+  console.error("❌ JWT_SECRET no está definida. Configúrala en .env antes de arrancar el servidor.");
+  process.exit(1);
+}
+
 const app    = express();
 const server = http.createServer(app);
 
@@ -25,7 +30,7 @@ io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error("No autorizado"));
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret_fallback");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.userId = decoded.id || decoded.userId;
     socket.role   = decoded.role;
     next();
@@ -68,21 +73,6 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
-
-// ── RUTA TEMPORAL ADMIN (BORRAR ANTES DE PRODUCCIÓN) ─────────────────────────
-app.get("/dev/make-admin/:email", async (req, res) => {
-  const prisma = require("./config/prisma");
-  try {
-    const user = await prisma.user.update({
-      where:  { email: req.params.email },
-      data:   { role: "ADMIN" },
-      select: { id: true, name: true, email: true, role: true },
-    });
-    res.json({ ok: true, user });
-  } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
-  }
-});
 
 // ── HEALTH CHECK ──────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
