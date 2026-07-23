@@ -1,5 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { isOwner } = require('../middlewares/auth.middleware');
+const { buildPropertyWhere } = require('../utils/propertyFilters');
+const { notifyMatchingSavedSearches } = require('../utils/savedSearchNotifier');
 const prisma = new PrismaClient();
 
 // 1. CREAR UNA PROPIEDAD
@@ -45,6 +47,10 @@ const createProperty = async (req, res) => {
 
     console.log('✅ Propiedad creada:', newProperty.id);
     res.status(201).json({ message: 'Propiedad publicada con éxito', property: newProperty });
+
+    // No bloquea la respuesta — la comparación contra búsquedas guardadas
+    // corre en segundo plano después de responderle al que publicó.
+    notifyMatchingSavedSearches(newProperty, req.app.get('io'));
   } catch (error) {
     console.error('❌ Error en createProperty:', error);
     res.status(500).json({ error: 'Error en el servidor al crear la propiedad.', detail: error.message });
@@ -57,25 +63,7 @@ const getProperties = async (req, res) => {
     console.log("📋 getProperties llamado con query:", req.query);
     const { city, type, status, minPrice, maxPrice, rooms, search, page = 1, limit = 12 } = req.query;
 
-    const whereClause = {};
-
-    // Búsqueda por texto (título o ciudad)
-    if (search) {
-      whereClause.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { city:  { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (city)     whereClause.city   = { contains: city, mode: 'insensitive' };
-    if (type)     whereClause.type   = type.toUpperCase();
-    if (status)   whereClause.status = status.toUpperCase();
-    if (rooms)    whereClause.rooms  = { gte: parseInt(rooms) };
-    if (minPrice || maxPrice) {
-      whereClause.price = {};
-      if (minPrice) whereClause.price.gte = parseFloat(minPrice);
-      if (maxPrice) whereClause.price.lte = parseFloat(maxPrice);
-    }
+    const whereClause = buildPropertyWhere({ search, city, type, status, rooms, minPrice, maxPrice });
 
     const pageNum  = Math.max(1, parseInt(page));
     const limitNum = Math.min(50, Math.max(1, parseInt(limit)));

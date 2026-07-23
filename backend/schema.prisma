@@ -50,8 +50,23 @@ model User {
   receivedMessages Message[] @relation("MessagesReceived")
   reviews         Review[]
   savedSearches   SavedSearch[]
+  notifications   Notification[]
 
   @@map("users")
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  message    String
+  propertyId String?
+  read       Boolean  @default(false)
+
+  createdAt  DateTime @default(now())
+
+  @@map("notifications")
 }
 
 model SavedSearch {
