@@ -119,6 +119,7 @@ app.use("/api/favorites",  apiLimiter,    require(path.join(__dirname, "routes",
 app.use("/api/messages",   apiLimiter,    require(path.join(__dirname, "routes", "messageRoutes.js")));
 app.use("/api/admin",      require(path.join(__dirname, "routes", "adminRoutes.js")));
 app.use("/api/reviews",    apiLimiter,    require(path.join(__dirname, "routes", "reviewRoutes.js")));
+app.use("/api/users",      apiLimiter,    require(path.join(__dirname, "routes", "userRoutes.js")));
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
