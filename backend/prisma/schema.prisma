@@ -49,8 +49,22 @@ model User {
   sentMessages    Message[]  @relation("MessagesSent")
   receivedMessages Message[] @relation("MessagesReceived")
   reviews         Review[]
+  savedSearches   SavedSearch[]
 
   @@map("users")
+}
+
+model SavedSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  filters   Json
+
+  createdAt DateTime @default(now())
+
+  @@map("saved_searches")
 }
 
 model Property {
