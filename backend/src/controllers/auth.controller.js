@@ -91,4 +91,23 @@ const me = async (req, res) => {
   }
 };
 
-module.exports = { register, login, me };
+// 4. ACTUALIZAR FOTO DE PERFIL
+const updateAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No se recibió ninguna imagen." });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.userId },
+      data:  { avatar: req.file.path },
+    });
+
+    res.json({ message: "Foto de perfil actualizada.", user: sanitizeUser(user) });
+  } catch (error) {
+    console.error("❌ Error en updateAvatar:", error);
+    res.status(500).json({ error: "Error al actualizar la foto de perfil." });
+  }
+};
+
+module.exports = { register, login, me, updateAvatar };
