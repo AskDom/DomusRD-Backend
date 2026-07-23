@@ -23,7 +23,7 @@ const getUsers = async (req, res) => {
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
         select: {
-          id: true, name: true, email: true,
+          id: true, name: true, email: true, avatar: true,
           role: true, createdAt: true,
           _count: { select: { properties: true, favorites: true } },
         },
@@ -97,7 +97,7 @@ const getAdminProperties = async (req, res) => {
         where, skip, take: Number(limit),
         orderBy: { createdAt: 'desc' },
         include: {
-          publishedBy: { select: { id: true, name: true, email: true } },
+          publishedBy: { select: { id: true, name: true, email: true, avatar: true } },
           _count: { select: { favorites: true } },
         },
       }),

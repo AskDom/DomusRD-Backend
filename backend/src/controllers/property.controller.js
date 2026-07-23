@@ -39,7 +39,7 @@ const createProperty = async (req, res) => {
         }
       },
       include: {
-        publishedBy: { select: { id: true, name: true, email: true } }
+        publishedBy: { select: { id: true, name: true, email: true, avatar: true } }
       }
     });
 
@@ -84,7 +84,7 @@ const getProperties = async (req, res) => {
     const [properties, total] = await prisma.$transaction([
       prisma.property.findMany({
         where: whereClause,
-        include: { publishedBy: { select: { id: true, name: true, email: true } } },
+        include: { publishedBy: { select: { id: true, name: true, email: true, avatar: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limitNum,
@@ -119,7 +119,7 @@ const getPropertyById = async (req, res) => {
       where: { id },
       include: {
         publishedBy: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true, avatar: true }
         }
       }
     });
