@@ -38,6 +38,24 @@ const loginValidator = [
     .notEmpty().withMessage('La contraseña es requerida'),
 ];
 
+const forgotPasswordValidator = [
+  body('email')
+    .trim()
+    .notEmpty().withMessage('El correo es requerido')
+    .isEmail().withMessage('El correo no es válido')
+    .normalizeEmail(),
+];
+
+const resetPasswordValidator = [
+  body('token')
+    .trim()
+    .notEmpty().withMessage('El token es requerido'),
+
+  body('password')
+    .notEmpty().withMessage('La contraseña es requerida')
+    .isLength({ min: 5 }).withMessage('La contraseña debe tener al menos 5 caracteres'),
+];
+
 // ── PROPERTIES ────────────────────────────────────────────────────────────────
 const createPropertyValidator = [
   body('title')
@@ -169,6 +187,8 @@ const sendMessageValidator = [
 module.exports = {
   registerValidator,
   loginValidator,
+  forgotPasswordValidator,
+  resetPasswordValidator,
   createPropertyValidator,
   updatePropertyValidator,
   reviewValidator,

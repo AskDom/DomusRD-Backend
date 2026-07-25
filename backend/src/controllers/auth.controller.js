@@ -1,8 +1,13 @@
 const prisma = require("../config/prisma");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const { generateToken } = require("../utils/jwt");
+const { sendPasswordResetEmail } = require("../utils/mailer");
 
 const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
+
+const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
 // Quita el password antes de enviar al frontend
 function sanitizeUser(user) {
@@ -110,4 +115,62 @@ const updateAvatar = async (req, res) => {
   }
 };
 
-module.exports = { register, login, me, updateAvatar };
+// 5. SOLICITAR RECUPERACIÓN DE CONTRASEÑA
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Siempre respondemos lo mismo, exista o no el correo — evita que alguien
+    // use este endpoint para averiguar qué correos están registrados.
+    if (user) {
+      const rawToken         = crypto.randomBytes(32).toString("hex");
+      const resetToken       = hashToken(rawToken);
+      const resetTokenExpiry = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data:  { resetToken, resetTokenExpiry },
+      });
+
+      const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${rawToken}`;
+      await sendPasswordResetEmail(user.email, resetUrl);
+    }
+
+    res.json({ message: "Si existe una cuenta con ese correo, te enviamos un enlace para recuperar tu contraseña." });
+  } catch (error) {
+    console.error("❌ Error en forgotPassword:", error);
+    res.status(500).json({ error: "Error al procesar la solicitud." });
+  }
+};
+
+// 6. RESTABLECER CONTRASEÑA CON EL TOKEN DEL CORREO
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken:       hashToken(token),
+        resetTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "El enlace es inválido o ya expiró." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
+    });
+
+    res.json({ message: "Contraseña actualizada con éxito." });
+  } catch (error) {
+    console.error("❌ Error en resetPassword:", error);
+    res.status(500).json({ error: "Error al restablecer la contraseña." });
+  }
+};
+
+module.exports = { register, login, me, updateAvatar, forgotPassword, resetPassword };
