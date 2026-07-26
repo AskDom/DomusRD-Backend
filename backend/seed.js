@@ -11,10 +11,11 @@ async function main() {
     where:  { email: 'vendedor@domusrd.com' },
     update: {},
     create: {
-      name:     'Carlos Vendedor',
-      email:    'vendedor@domusrd.com',
-      password: hashedPassword,
-      role:     'VENDEDOR',
+      name:          'Carlos Vendedor',
+      email:         'vendedor@domusrd.com',
+      password:      hashedPassword,
+      role:          'VENDEDOR',
+      emailVerified: true,
     },
   });
 
@@ -22,10 +23,11 @@ async function main() {
     where:  { email: 'agente@domusrd.com' },
     update: {},
     create: {
-      name:     'María Agente',
-      email:    'agente@domusrd.com',
-      password: hashedPassword,
-      role:     'AGENTE',
+      name:          'María Agente',
+      email:         'agente@domusrd.com',
+      password:      hashedPassword,
+      role:          'AGENTE',
+      emailVerified: true,
     },
   });
 

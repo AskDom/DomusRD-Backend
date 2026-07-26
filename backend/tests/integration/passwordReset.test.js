@@ -5,6 +5,9 @@
 // de prueba que no sean la tuya propia en modo sandbox).
 jest.mock("../../src/utils/mailer", () => ({
   sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+  // register() ahora también dispara el correo de verificación — hay que
+  // mockearlo aquí también o esos tests rompen al registrar un usuario.
+  sendVerificationEmail:  jest.fn().mockResolvedValue(undefined),
 }));
 
 const request = require("supertest");

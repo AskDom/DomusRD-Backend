@@ -46,7 +46,11 @@ model User {
 
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  
+
+  emailVerified     Boolean   @default(false)
+  verifyToken       String?   @unique
+  verifyTokenExpiry DateTime?
+
   properties      Property[]
   favorites       Favorite[]
   sentMessages    Message[]  @relation("MessagesSent")
