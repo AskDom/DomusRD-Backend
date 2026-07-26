@@ -1,18 +1,22 @@
+// Mockeado para que estos tests nunca disparen un envío real por Resend —
+// PrismaClient carga el .env real del proyecto al instanciarse (aunque los
+// tests corran con .env.test), así que sin este mock se cuela la
+// RESEND_API_KEY real y Resend devuelve 403 (no puedes mandar a direcciones
+// de prueba que no sean la tuya propia en modo sandbox).
+jest.mock("../../src/utils/mailer", () => ({
+  sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+}));
+
 const request = require("supertest");
 const app     = require("../../src/app");
 const { prisma, resetDb } = require("../helpers/testDb");
+const { sendPasswordResetEmail } = require("../../src/utils/mailer");
 
-// En test no hay RESEND_API_KEY configurada, así que mailer.js solo hace
-// console.warn con el link de reseteo en vez de enviar un correo real.
-// Interceptamos ese warn para sacar el token, tal como lo sacaría el usuario
-// del correo real.
 async function requestResetToken(email) {
-  const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
   await request(app).post("/api/auth/forgot-password").send({ email });
-  const call = warnSpy.mock.calls.find((args) => args[0]?.includes("Link de reseteo"));
-  warnSpy.mockRestore();
-  const url = call ? call[1] : null;
-  return url ? new URL(url).searchParams.get("token") : null;
+  const call = sendPasswordResetEmail.mock.calls.find(([to]) => to === email);
+  const resetUrl = call ? call[1] : null;
+  return resetUrl ? new URL(resetUrl).searchParams.get("token") : null;
 }
 
 beforeEach(async () => {
