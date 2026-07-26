@@ -150,3 +150,59 @@ describe("GET /api/properties", () => {
     expect(res.body.pagination.total).toBe(1);
   });
 });
+
+describe("Ubicación exacta requiere sesión", () => {
+  async function createSampleProperty() {
+    const owner = await registerVendedor("geo-owner@domusrd.test");
+    const res = await request(app)
+      .post("/api/properties")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send(samplePropertyPayload());
+    return { owner, property: res.body.property };
+  }
+
+  it("GET /api/properties sin sesión redondea lat/lng a una zona aproximada", async () => {
+    await createSampleProperty();
+
+    const res = await request(app).get("/api/properties");
+
+    expect(res.status).toBe(200);
+    const [prop] = res.body.properties;
+    expect(prop.lat).toBe(18.47);
+    expect(prop.lng).toBe(-69.93);
+    expect(prop.lat).not.toBe(18.4655);
+  });
+
+  it("GET /api/properties con sesión devuelve lat/lng exactos", async () => {
+    const { owner } = await createSampleProperty();
+
+    const res = await request(app)
+      .get("/api/properties")
+      .set("Authorization", `Bearer ${owner.token}`);
+
+    const [prop] = res.body.properties;
+    expect(prop.lat).toBe(18.4655);
+    expect(prop.lng).toBe(-69.9313);
+  });
+
+  it("GET /api/properties/:id sin sesión no incluye lat ni lng", async () => {
+    const { property } = await createSampleProperty();
+
+    const res = await request(app).get(`/api/properties/${property.id}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.lat).toBeUndefined();
+    expect(res.body.lng).toBeUndefined();
+  });
+
+  it("GET /api/properties/:id con sesión sí incluye lat/lng exactos", async () => {
+    const { owner, property } = await createSampleProperty();
+
+    const res = await request(app)
+      .get(`/api/properties/${property.id}`)
+      .set("Authorization", `Bearer ${owner.token}`);
+
+    expect(res.body.lat).toBe(18.4655);
+    expect(res.body.lng).toBe(-69.9313);
+  });
+});
