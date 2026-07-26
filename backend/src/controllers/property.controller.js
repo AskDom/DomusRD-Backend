@@ -4,6 +4,12 @@ const { buildPropertyWhere } = require('../utils/propertyFilters');
 const { notifyMatchingSavedSearches } = require('../utils/savedSearchNotifier');
 const prisma = new PrismaClient();
 
+// La ubicación exacta es una de las razones para crear cuenta — sin sesión
+// solo devolvemos una zona aproximada (grilla de ~1km), nunca el punto real.
+// Esto respalda en el backend lo que el frontend ya oculta visualmente: sin
+// esto, cualquiera podría ver la petición de red y sacar lat/lng exactos.
+const roundToZone = (n) => Math.round(n * 100) / 100;
+
 // 1. CREAR UNA PROPIEDAD
 const createProperty = async (req, res) => {
   try {
@@ -80,8 +86,12 @@ const getProperties = async (req, res) => {
       prisma.property.count({ where: whereClause }),
     ]);
 
+    const responseProperties = req.user
+      ? properties
+      : properties.map((p) => ({ ...p, lat: roundToZone(p.lat), lng: roundToZone(p.lng) }));
+
     res.status(200).json({
-      properties,
+      properties: responseProperties,
       pagination: {
         total,
         page:       pageNum,
@@ -114,6 +124,13 @@ const getPropertyById = async (req, res) => {
 
     if (!property) {
       return res.status(404).json({ error: 'Propiedad no encontrada.' });
+    }
+
+    // Sin sesión, ni siquiera mandamos lat/lng — el mapa en el detalle está
+    // bloqueado por completo hasta iniciar sesión (no una zona aproximada).
+    if (!req.user) {
+      const { lat, lng, ...withoutExactLocation } = property;
+      return res.status(200).json(withoutExactLocation);
     }
 
     res.status(200).json(property);
