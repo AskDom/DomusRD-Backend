@@ -1,8 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../config/prisma');
 const { isOwner } = require('../middlewares/auth.middleware');
 const { buildPropertyWhere } = require('../utils/propertyFilters');
 const { notifyMatchingSavedSearches } = require('../utils/savedSearchNotifier');
-const prisma = new PrismaClient();
 
 // La ubicación exacta es una de las razones para crear cuenta — sin sesión
 // solo devolvemos una zona aproximada (grilla de ~1km), nunca el punto real.
