@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./config/sentry"); // Cargar antes que todo lo demás para capturar cualquier error temprano.
 const http        = require("http");
 const { Server }  = require("socket.io");
 const jwt         = require("jsonwebtoken");

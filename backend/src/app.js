@@ -77,7 +77,7 @@ app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
 
 // ── ERROR HANDLER ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("Error no manejado:", err);
   res.status(err.status || 500).json({ error: err.message || "Error interno" });
 });
 

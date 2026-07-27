@@ -35,6 +35,7 @@ jobs:
       FRONTEND_URL: http://localhost:3000
       AUTH_RATE_LIMIT_MAX: 1000
       RESEND_API_KEY: ""
+      SENTRY_DSN: ""
 
     steps:
       - uses: actions/checkout@v4
