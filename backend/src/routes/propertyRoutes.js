@@ -4,13 +4,14 @@ const {
   createProperty, getProperties, getPropertyById,
   updateProperty, deleteProperty,
 } = require('../controllers/property.controller');
-const { protect, requireRole, requireVerifiedEmail } = require('../middlewares/auth.middleware');
+const { protect, attachUserIfPresent, requireRole, requireVerifiedEmail } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validate.middleware');
 const { createPropertyValidator, updatePropertyValidator } = require('../middlewares/validators');
 
-// Públicas
-router.get('/',    getProperties);
-router.get('/:id', getPropertyById);
+// Públicas — pero attachUserIfPresent deja saber al controller si hay sesión,
+// para decidir cuánto detalle de ubicación devolver.
+router.get('/',    attachUserIfPresent, getProperties);
+router.get('/:id', attachUserIfPresent, getPropertyById);
 
 // Protegidas
 router.post('/',
