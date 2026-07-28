@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../config/prisma');
 
 // ── MIDDLEWARE 1: Verifica que el token JWT sea válido ────────────────────────
 const protect = async (req, res, next) => {
@@ -55,6 +56,20 @@ const requireRole = (...roles) => (req, res, next) => {
   next();
 };
 
+// ── MIDDLEWARE 2b: Verifica que el usuario haya verificado su correo ─────────
+// Se consulta la DB en vez de confiar en el JWT, para que verificar el correo
+// tenga efecto inmediato sin necesitar cerrar y volver a iniciar sesión.
+const requireVerifiedEmail = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'No autenticado.' });
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+  if (!user?.emailVerified) {
+    return res.status(403).json({ error: 'Verifica tu correo antes de publicar propiedades.' });
+  }
+  next();
+};
+
 // ── MIDDLEWARE 3: Verifica que el usuario sea dueño del recurso ───────────────
 // Uso: en el controller, después de buscar la propiedad
 const isOwner = (resourceUserId, req, res) => {
@@ -65,4 +80,4 @@ const isOwner = (resourceUserId, req, res) => {
   return true;
 };
 
-module.exports = { protect, attachUserIfPresent, requireRole, isOwner };
+module.exports = { protect, attachUserIfPresent, requireRole, requireVerifiedEmail, isOwner };

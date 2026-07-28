@@ -2,10 +2,13 @@ const request = require("supertest");
 const app     = require("../../src/app");
 const { prisma, resetDb } = require("../helpers/testDb");
 
+// Estos tests son sobre roles/IDOR en properties, no sobre verificación de
+// correo — se marca verificado directo en la DB para no acoplar ambos temas.
 async function registerVendedor(email) {
   const res = await request(app).post("/api/auth/register").send({
     name: "Vendedor Test", email, password: "clave123", role: "VENDEDOR",
   });
+  await prisma.user.update({ where: { id: res.body.user.id }, data: { emailVerified: true } });
   return { token: res.body.token, user: res.body.user };
 }
 

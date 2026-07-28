@@ -56,6 +56,12 @@ const resetPasswordValidator = [
     .isLength({ min: 5 }).withMessage('La contraseña debe tener al menos 5 caracteres'),
 ];
 
+const verifyEmailValidator = [
+  body('token')
+    .trim()
+    .notEmpty().withMessage('El token es requerido'),
+];
+
 // ── PROPERTIES ────────────────────────────────────────────────────────────────
 const createPropertyValidator = [
   body('title')
@@ -189,6 +195,7 @@ module.exports = {
   loginValidator,
   forgotPasswordValidator,
   resetPasswordValidator,
+  verifyEmailValidator,
   createPropertyValidator,
   updatePropertyValidator,
   reviewValidator,

@@ -30,4 +30,29 @@ async function sendPasswordResetEmail(to, resetUrl) {
   });
 }
 
-module.exports = { sendPasswordResetEmail };
+async function sendVerificationEmail(to, verifyUrl) {
+  if (!resend) {
+    console.warn("⚠️  RESEND_API_KEY no configurada. Link de verificación:", verifyUrl);
+    return;
+  }
+
+  await resend.emails.send({
+    from:    FROM,
+    to,
+    subject: "Verifica tu correo — DomusRD",
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Verifica tu correo</h2>
+        <p>Gracias por registrarte en DomusRD. Confirma tu correo para poder publicar propiedades.</p>
+        <p>
+          <a href="${verifyUrl}" style="display:inline-block; background:#1a56db; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold;">
+            Verificar mi correo
+          </a>
+        </p>
+        <p>Este enlace expira en 24 horas. Si no creaste esta cuenta, puedes ignorar este correo.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordResetEmail, sendVerificationEmail };

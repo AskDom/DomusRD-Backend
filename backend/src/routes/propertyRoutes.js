@@ -4,7 +4,7 @@ const {
   createProperty, getProperties, getPropertyById,
   updateProperty, deleteProperty,
 } = require('../controllers/property.controller');
-const { protect, attachUserIfPresent, requireRole } = require('../middlewares/auth.middleware');
+const { protect, attachUserIfPresent, requireRole, requireVerifiedEmail } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validate.middleware');
 const { createPropertyValidator, updatePropertyValidator } = require('../middlewares/validators');
 
@@ -17,6 +17,7 @@ router.get('/:id', attachUserIfPresent, getPropertyById);
 router.post('/',
   protect,
   requireRole('VENDEDOR', 'AGENTE', 'ADMIN'),
+  requireVerifiedEmail,
   createPropertyValidator, validate,
   createProperty
 );

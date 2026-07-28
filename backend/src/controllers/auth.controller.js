@@ -2,10 +2,11 @@ const prisma = require("../config/prisma");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { generateToken } = require("../utils/jwt");
-const { sendPasswordResetEmail } = require("../utils/mailer");
+const { sendPasswordResetEmail, sendVerificationEmail } = require("../utils/mailer");
 
 const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
+const RESET_TOKEN_TTL_MS  = 60 * 60 * 1000;      // 1 hora
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
@@ -13,6 +14,26 @@ const hashToken = (token) => crypto.createHash("sha256").update(token).digest("h
 function sanitizeUser(user) {
   const { password, ...rest } = user;
   return rest;
+}
+
+// Genera y guarda un token de verificación para el usuario, y le manda el correo.
+// Nunca lanza — un fallo de envío no debe romper el registro ni el reenvío.
+async function issueVerificationEmail(user) {
+  try {
+    const rawToken          = crypto.randomBytes(32).toString("hex");
+    const verifyToken       = hashToken(rawToken);
+    const verifyTokenExpiry = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { verifyToken, verifyTokenExpiry },
+    });
+
+    const verifyUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${rawToken}`;
+    await sendVerificationEmail(user.email, verifyUrl);
+  } catch (error) {
+    console.error("❌ Error enviando correo de verificación:", error);
+  }
 }
 
 // 1. REGISTRO DE USUARIOS
@@ -37,6 +58,9 @@ const register = async (req, res) => {
     });
 
     const token = generateToken(newUser);
+
+    // No bloquea la respuesta de registro si el correo de verificación falla en enviarse.
+    await issueVerificationEmail(newUser);
 
     res.status(201).json({
       message: "Usuario creado con éxito",
@@ -173,4 +197,56 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, me, updateAvatar, forgotPassword, resetPassword };
+// 7. VERIFICAR CORREO CON EL TOKEN DEL CORREO
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    const user = await prisma.user.findFirst({
+      where: {
+        verifyToken:       hashToken(token),
+        verifyTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "El enlace es inválido o ya expiró." });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { emailVerified: true, verifyToken: null, verifyTokenExpiry: null },
+    });
+
+    res.json({ message: "Correo verificado con éxito." });
+  } catch (error) {
+    console.error("❌ Error en verifyEmail:", error);
+    res.status(500).json({ error: "Error al verificar el correo." });
+  }
+};
+
+// 8. REENVIAR CORREO DE VERIFICACIÓN (usuario autenticado)
+const resendVerification = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado." });
+    }
+    if (user.emailVerified) {
+      return res.json({ message: "Tu correo ya está verificado." });
+    }
+
+    await issueVerificationEmail(user);
+
+    res.json({ message: "Te reenviamos el correo de verificación." });
+  } catch (error) {
+    console.error("❌ Error en resendVerification:", error);
+    res.status(500).json({ error: "Error al reenviar el correo de verificación." });
+  }
+};
+
+module.exports = {
+  register, login, me, updateAvatar,
+  forgotPassword, resetPassword,
+  verifyEmail, resendVerification,
+};
