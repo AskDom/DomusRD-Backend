@@ -54,8 +54,22 @@ model User {
   reviews         Review[]
   savedSearches   SavedSearch[]
   notifications   Notification[]
+  pushTokens      PushToken[]
 
   @@map("users")
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  platform  String?
+
+  createdAt DateTime @default(now())
+
+  @@map("push_tokens")
 }
 
 model Notification {

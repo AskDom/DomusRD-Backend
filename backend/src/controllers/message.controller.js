@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { sendPushToUser } = require('../utils/pushNotifier');
 
 const USER_SELECT = { select: { id: true, name: true } };
 
@@ -65,6 +66,20 @@ const sendMessage = async (req, res) => {
       // También al emisor para confirmar (en caso de múltiples pestañas)
       io.to(`user:${req.user.userId}`).emit("message_sent", normalized);
     }
+
+    // Push notification al receptor — no bloquea la respuesta ni la falla si
+    // el envío no funciona (usuario sin token, servicio caído, etc.).
+    sendPushToUser(toId, {
+      title: message.from?.name || "Nuevo mensaje",
+      body: message.text,
+      data: {
+        type: "message",
+        conversationWith: message.fromId,
+        otherName: message.from?.name || "Usuario",
+        propertyId: message.propertyId,
+        propertyTitle: message.property?.title || "",
+      },
+    });
 
     res.status(201).json({ message });
   } catch (error) {

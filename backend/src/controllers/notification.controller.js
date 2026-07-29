@@ -46,4 +46,37 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
-module.exports = { getNotifications, markAsRead, markAllAsRead };
+// POST /api/notifications/push-token — registra (o reasigna) un Expo push token
+const registerPushToken = async (req, res) => {
+  try {
+    const { token, platform } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'token es obligatorio.' });
+    }
+    // El token es único por dispositivo, no por usuario: si el mismo
+    // dispositivo ya estaba registrado con otra cuenta (logout + login con
+    // otro usuario), lo reasignamos en vez de fallar por la unique constraint.
+    await prisma.pushToken.upsert({
+      where:  { token },
+      update: { userId: req.user.userId, platform: platform || null },
+      create: { userId: req.user.userId, token, platform: platform || null },
+    });
+    res.status(201).json({ message: 'Token registrado.' });
+  } catch (err) {
+    console.error('registerPushToken:', err);
+    res.status(500).json({ error: 'Error al registrar el token.' });
+  }
+};
+
+// DELETE /api/notifications/push-token — desregistra todos los tokens del usuario (logout)
+const unregisterPushToken = async (req, res) => {
+  try {
+    await prisma.pushToken.deleteMany({ where: { userId: req.user.userId } });
+    res.json({ message: 'Token(s) desregistrado(s).' });
+  } catch (err) {
+    console.error('unregisterPushToken:', err);
+    res.status(500).json({ error: 'Error al desregistrar el token.' });
+  }
+};
+
+module.exports = { getNotifications, markAsRead, markAllAsRead, registerPushToken, unregisterPushToken };
