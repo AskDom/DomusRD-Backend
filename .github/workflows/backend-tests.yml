@@ -16,19 +16,19 @@ jobs:
       postgres:
         image: postgres:18-alpine
         env:
-          POSTGRES_USER: domusrd
-          POSTGRES_PASSWORD: domusrd_dev_password
-          POSTGRES_DB: domusrd_test
+          POSTGRES_USER: domify
+          POSTGRES_PASSWORD: domify_dev_password
+          POSTGRES_DB: domify_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U domusrd"
+          --health-cmd "pg_isready -U domify"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://domusrd:domusrd_dev_password@localhost:5432/domusrd_test?schema=public
+      DATABASE_URL: postgresql://domify:domify_dev_password@localhost:5432/domify_test?schema=public
       JWT_SECRET: ci-test-secret-no-usar-en-produccion
       JWT_EXPIRES_IN: 7d
       NODE_ENV: test

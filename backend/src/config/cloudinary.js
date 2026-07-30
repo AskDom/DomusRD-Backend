@@ -8,11 +8,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Almacenamiento: cada imagen va a la carpeta "domusrd/properties" en Cloudinary
+// Almacenamiento: cada imagen va a la carpeta "domify/properties" en Cloudinary
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder:         'domusrd/properties',
+    folder:         'domify/properties',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
     transformation: [{ width: 1200, height: 800, crop: 'limit', quality: 'auto' }],
   },
@@ -36,7 +36,7 @@ const upload = multer({
 const avatarStorage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder:          'domusrd/avatars',
+    folder:          'domify/avatars',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
     transformation:  [{ width: 400, height: 400, crop: 'fill', gravity: 'face', quality: 'auto' }],
   },

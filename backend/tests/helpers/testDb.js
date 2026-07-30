@@ -3,7 +3,7 @@ const prisma = require("../../src/config/prisma");
 // Cinturón de seguridad: si por lo que sea DATABASE_URL no apunta a la DB de
 // test (p.ej. se corrió jest sin pasar por "npm test"), abortamos en vez de
 // arriesgarnos a vaciar la base de datos de desarrollo.
-if (!/domusrd_test/.test(process.env.DATABASE_URL || "")) {
+if (!/domify_test/.test(process.env.DATABASE_URL || "")) {
   throw new Error(
     `tests/helpers/testDb.js: DATABASE_URL no apunta a la base de datos de test ` +
     `(actual: ${process.env.DATABASE_URL}). Corre los tests con "npm test".`

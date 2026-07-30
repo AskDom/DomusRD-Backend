@@ -1,7 +1,7 @@
 const { Resend } = require("resend");
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM   = process.env.MAIL_FROM || "DomusRD <onboarding@resend.dev>";
+const FROM   = process.env.MAIL_FROM || "Domify <onboarding@resend.dev>";
 
 async function sendPasswordResetEmail(to, resetUrl) {
   if (!resend) {
@@ -14,11 +14,11 @@ async function sendPasswordResetEmail(to, resetUrl) {
   await resend.emails.send({
     from:    FROM,
     to,
-    subject: "Recupera tu contraseña — DomusRD",
+    subject: "Recupera tu contraseña — Domify",
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2>Recupera tu contraseña</h2>
-        <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en DomusRD.</p>
+        <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en Domify.</p>
         <p>
           <a href="${resetUrl}" style="display:inline-block; background:#1a56db; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold;">
             Restablecer contraseña

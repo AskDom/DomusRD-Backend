@@ -26,7 +26,7 @@ app.use(express.json());
 // ── HEALTH CHECK ──────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
   const onlineUsers = req.app.get("onlineUsers");
-  res.json({ status: "ok", message: "DomusRD API funcionando 🏠", onlineUsers: onlineUsers ? onlineUsers.size : 0 });
+  res.json({ status: "ok", message: "Domify API funcionando 🏠", onlineUsers: onlineUsers ? onlineUsers.size : 0 });
 });
 
 // ── RATE LIMITING ────────────────────────────────────────────────────────────

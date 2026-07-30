@@ -1,6 +1,6 @@
-# DomusRD — Portal Inmobiliario 🏠
+# Domify — Portal Inmobiliario 🏠
 
-Monorepo del proyecto DomusRD: portal inmobiliario para República Dominicana.
+Monorepo del proyecto Domify: portal inmobiliario para República Dominicana.
 
 ## Estructura
 
@@ -22,14 +22,14 @@ Corre en `http://localhost:3000`
 ## Backend
 
 ```bash
-# 1. Levanta Postgres (crea domusrd y domusrd_test automáticamente)
+# 1. Levanta Postgres (crea domify y domify_test automáticamente)
 docker compose up -d
 
 cd backend
 npm install
 cp .env.example .env
 # Si usas el Postgres de docker-compose de arriba, tu DATABASE_URL es:
-#   postgresql://domusrd:domusrd_dev_password@localhost:5432/domusrd?schema=public
+#   postgresql://domify:domify_dev_password@localhost:5432/domify?schema=public
 npx prisma migrate deploy
 npm run dev
 ```
@@ -39,7 +39,7 @@ Corre en `http://localhost:5000`
 
 ```bash
 cd backend
-cp .env.test.example .env.test   # usa domusrd_test, ya creada por docker-compose
+cp .env.test.example .env.test   # usa domify_test, ya creada por docker-compose
 npm test
 ```
 

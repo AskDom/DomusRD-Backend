@@ -3,21 +3,21 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: domusrd
-      POSTGRES_PASSWORD: domusrd_dev_password
-      POSTGRES_DB: domusrd
+      POSTGRES_USER: domify
+      POSTGRES_PASSWORD: domify_dev_password
+      POSTGRES_DB: domify
     ports:
       - "5432:5432"
     volumes:
-      - domusrd_pgdata:/var/lib/postgresql/data
-      # Crea también domusrd_test la primera vez que arranca el contenedor,
+      - domify_pgdata:/var/lib/postgresql
+      # Crea también domify_test la primera vez que arranca el contenedor,
       # para que "npm test" en backend/ funcione sin pasos extra.
       - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U domusrd"]
+      test: ["CMD-SHELL", "pg_isready -U domify"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  domusrd_pgdata:
+  domify_pgdata:

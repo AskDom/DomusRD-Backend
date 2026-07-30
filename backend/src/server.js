@@ -62,7 +62,7 @@ prisma.$connect()
   .then(() => {
     console.log("✅ Conectado a PostgreSQL");
     server.listen(PORT, () => {
-      console.log(`🚀 Servidor DomusRD corriendo en http://localhost:${PORT}`);
+      console.log(`🚀 Servidor Domify corriendo en http://localhost:${PORT}`);
     });
   })
   .catch((err) => {

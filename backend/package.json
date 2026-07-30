@@ -1,7 +1,7 @@
 {
-  "name": "domusrd-backend",
+  "name": "domify-backend",
   "version": "1.0.0",
-  "description": "API backend para DomusRD - Portal Inmobiliario",
+  "description": "API backend para Domify - Portal Inmobiliario",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {

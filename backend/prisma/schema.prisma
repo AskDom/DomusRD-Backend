@@ -1,4 +1,4 @@
-// Schema de DomusRD — adaptado del esquema original
+// Schema de Domify — adaptado del esquema original
 // para reflejar los modelos usados en el frontend (localStorage -> Postgres)
 
 datasource db {

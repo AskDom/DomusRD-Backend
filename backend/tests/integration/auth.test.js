@@ -15,13 +15,13 @@ describe("POST /api/auth/register", () => {
   it("registra un usuario nuevo y devuelve token sin exponer el password", async () => {
     const res = await request(app).post("/api/auth/register").send({
       name: "Ana Pérez",
-      email: "ana@domusrd.test",
+      email: "ana@domify.test",
       password: "clave123",
     });
 
     expect(res.status).toBe(201);
     expect(res.body.token).toEqual(expect.any(String));
-    expect(res.body.user.email).toBe("ana@domusrd.test");
+    expect(res.body.user.email).toBe("ana@domify.test");
     expect(res.body.user.role).toBe("CLIENTE");
     expect(res.body.user.password).toBeUndefined();
   });
@@ -39,11 +39,11 @@ describe("POST /api/auth/register", () => {
 
   it("rechaza un correo ya registrado (409)", async () => {
     await request(app).post("/api/auth/register").send({
-      name: "Ana", email: "dup@domusrd.test", password: "clave123",
+      name: "Ana", email: "dup@domify.test", password: "clave123",
     });
 
     const res = await request(app).post("/api/auth/register").send({
-      name: "Ana Otra vez", email: "dup@domusrd.test", password: "otraclave",
+      name: "Ana Otra vez", email: "dup@domify.test", password: "otraclave",
     });
 
     expect(res.status).toBe(409);
@@ -53,13 +53,13 @@ describe("POST /api/auth/register", () => {
 describe("POST /api/auth/login", () => {
   beforeEach(async () => {
     await request(app).post("/api/auth/register").send({
-      name: "Login User", email: "login@domusrd.test", password: "clave123",
+      name: "Login User", email: "login@domify.test", password: "clave123",
     });
   });
 
   it("hace login con credenciales correctas", async () => {
     const res = await request(app).post("/api/auth/login").send({
-      email: "login@domusrd.test", password: "clave123",
+      email: "login@domify.test", password: "clave123",
     });
 
     expect(res.status).toBe(200);
@@ -68,7 +68,7 @@ describe("POST /api/auth/login", () => {
 
   it("rechaza contraseña incorrecta con mensaje genérico (401)", async () => {
     const res = await request(app).post("/api/auth/login").send({
-      email: "login@domusrd.test", password: "incorrecta",
+      email: "login@domify.test", password: "incorrecta",
     });
 
     expect(res.status).toBe(401);
@@ -84,7 +84,7 @@ describe("GET /api/auth/me", () => {
 
   it("devuelve el usuario autenticado con token válido", async () => {
     const registerRes = await request(app).post("/api/auth/register").send({
-      name: "Me User", email: "me@domusrd.test", password: "clave123",
+      name: "Me User", email: "me@domify.test", password: "clave123",
     });
 
     const res = await request(app)
@@ -92,6 +92,6 @@ describe("GET /api/auth/me", () => {
       .set("Authorization", `Bearer ${registerRes.body.token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.user.email).toBe("me@domusrd.test");
+    expect(res.body.user.email).toBe("me@domify.test");
   });
 });

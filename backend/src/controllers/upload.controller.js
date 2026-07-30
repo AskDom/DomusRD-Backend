@@ -23,11 +23,11 @@ const deleteImage = async (req, res) => {
     if (!url) return res.status(400).json({ error: 'Se requiere la URL de la imagen.' });
 
     // Extraemos el public_id de la URL de Cloudinary
-    // Ejemplo URL: https://res.cloudinary.com/demo/image/upload/v123/domusrd/properties/abc123.jpg
+    // Ejemplo URL: https://res.cloudinary.com/demo/image/upload/v123/domify/properties/abc123.jpg
     const parts  = url.split('/');
     const file   = parts[parts.length - 1].split('.')[0]; // "abc123"
     const folder = parts[parts.length - 2];               // "properties"
-    const publicId = `domusrd/${folder}/${file}`;
+    const publicId = `domify/${folder}/${file}`;
 
     await cloudinary.uploader.destroy(publicId);
     return res.status(200).json({ message: 'Imagen eliminada.' });

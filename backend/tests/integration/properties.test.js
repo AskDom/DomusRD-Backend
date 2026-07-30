@@ -44,7 +44,7 @@ describe("POST /api/properties", () => {
   });
 
   it("rechaza a un CLIENTE, que no tiene permiso para publicar (403)", async () => {
-    const { token } = await registerCliente("cliente@domusrd.test");
+    const { token } = await registerCliente("cliente@domify.test");
 
     const res = await request(app)
       .post("/api/properties")
@@ -55,8 +55,8 @@ describe("POST /api/properties", () => {
   });
 
   it("crea la propiedad a nombre del usuario autenticado, aunque el body traiga otro userId", async () => {
-    const { token, user } = await registerVendedor("vendedor@domusrd.test");
-    const other = await registerVendedor("otro-vendedor@domusrd.test");
+    const { token, user } = await registerVendedor("vendedor@domify.test");
+    const other = await registerVendedor("otro-vendedor@domify.test");
 
     const res = await request(app)
       .post("/api/properties")
@@ -78,7 +78,7 @@ describe("IDOR en PUT/DELETE /api/properties/:id", () => {
   }
 
   it("el dueño puede actualizar su propia propiedad", async () => {
-    const owner = await registerVendedor("owner@domusrd.test");
+    const owner = await registerVendedor("owner@domify.test");
     const property = await createProperty(owner.token);
 
     const res = await request(app)
@@ -91,8 +91,8 @@ describe("IDOR en PUT/DELETE /api/properties/:id", () => {
   });
 
   it("un vendedor NO puede actualizar la propiedad de otro vendedor (403)", async () => {
-    const owner   = await registerVendedor("owner2@domusrd.test");
-    const attacker = await registerVendedor("attacker@domusrd.test");
+    const owner   = await registerVendedor("owner2@domify.test");
+    const attacker = await registerVendedor("attacker@domify.test");
     const property = await createProperty(owner.token);
 
     const res = await request(app)
@@ -107,8 +107,8 @@ describe("IDOR en PUT/DELETE /api/properties/:id", () => {
   });
 
   it("un vendedor NO puede borrar la propiedad de otro vendedor (403)", async () => {
-    const owner    = await registerVendedor("owner3@domusrd.test");
-    const attacker = await registerVendedor("attacker3@domusrd.test");
+    const owner    = await registerVendedor("owner3@domify.test");
+    const attacker = await registerVendedor("attacker3@domify.test");
     const property = await createProperty(owner.token);
 
     const res = await request(app)
@@ -122,7 +122,7 @@ describe("IDOR en PUT/DELETE /api/properties/:id", () => {
   });
 
   it("el dueño puede borrar su propia propiedad", async () => {
-    const owner = await registerVendedor("owner4@domusrd.test");
+    const owner = await registerVendedor("owner4@domify.test");
     const property = await createProperty(owner.token);
 
     const res = await request(app)
@@ -137,7 +137,7 @@ describe("IDOR en PUT/DELETE /api/properties/:id", () => {
 
 describe("GET /api/properties", () => {
   it("lista propiedades públicamente, sin autenticación", async () => {
-    const owner = await registerVendedor("lister@domusrd.test");
+    const owner = await registerVendedor("lister@domify.test");
     await request(app)
       .post("/api/properties")
       .set("Authorization", `Bearer ${owner.token}`)
@@ -153,7 +153,7 @@ describe("GET /api/properties", () => {
 
 describe("Ubicación exacta requiere sesión", () => {
   async function createSampleProperty() {
-    const owner = await registerVendedor("geo-owner@domusrd.test");
+    const owner = await registerVendedor("geo-owner@domify.test");
     const res = await request(app)
       .post("/api/properties")
       .set("Authorization", `Bearer ${owner.token}`)

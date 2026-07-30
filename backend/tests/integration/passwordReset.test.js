@@ -31,20 +31,20 @@ afterAll(async () => {
 describe("POST /api/auth/forgot-password", () => {
   it("responde 200 y guarda un token hasheado con expiración si el correo existe", async () => {
     await request(app).post("/api/auth/register").send({
-      name: "Reset User", email: "reset@domusrd.test", password: "clave123",
+      name: "Reset User", email: "reset@domify.test", password: "clave123",
     });
 
-    const token = await requestResetToken("reset@domusrd.test");
+    const token = await requestResetToken("reset@domify.test");
     expect(token).toEqual(expect.any(String));
 
-    const user = await prisma.user.findUnique({ where: { email: "reset@domusrd.test" } });
+    const user = await prisma.user.findUnique({ where: { email: "reset@domify.test" } });
     expect(user.resetToken).toEqual(expect.any(String));
     expect(user.resetToken).not.toBe(token); // guardado hasheado, no en texto plano
     expect(user.resetTokenExpiry.getTime()).toBeGreaterThan(Date.now());
   });
 
   it("responde 200 con el mismo mensaje genérico aunque el correo no exista (no revela si existe)", async () => {
-    const res = await request(app).post("/api/auth/forgot-password").send({ email: "no-existe@domusrd.test" });
+    const res = await request(app).post("/api/auth/forgot-password").send({ email: "no-existe@domify.test" });
     expect(res.status).toBe(200);
     expect(res.body.message).toMatch(/si existe una cuenta/i);
   });
@@ -65,12 +65,12 @@ describe("POST /api/auth/reset-password", () => {
 
   it("rechaza un token ya expirado (400)", async () => {
     await request(app).post("/api/auth/register").send({
-      name: "Exp", email: "exp@domusrd.test", password: "clave123",
+      name: "Exp", email: "exp@domify.test", password: "clave123",
     });
-    const token = await requestResetToken("exp@domusrd.test");
+    const token = await requestResetToken("exp@domify.test");
 
     await prisma.user.update({
-      where: { email: "exp@domusrd.test" },
+      where: { email: "exp@domify.test" },
       data:  { resetTokenExpiry: new Date(Date.now() - 1000) },
     });
 
@@ -80,17 +80,17 @@ describe("POST /api/auth/reset-password", () => {
 
   it("cambia la contraseña con un token válido, e invalida el token tras usarlo", async () => {
     await request(app).post("/api/auth/register").send({
-      name: "Ok", email: "ok@domusrd.test", password: "viejaClave",
+      name: "Ok", email: "ok@domify.test", password: "viejaClave",
     });
-    const token = await requestResetToken("ok@domusrd.test");
+    const token = await requestResetToken("ok@domify.test");
 
     const res = await request(app).post("/api/auth/reset-password").send({ token, password: "nuevaClave123" });
     expect(res.status).toBe(200);
 
-    const oldLogin = await request(app).post("/api/auth/login").send({ email: "ok@domusrd.test", password: "viejaClave" });
+    const oldLogin = await request(app).post("/api/auth/login").send({ email: "ok@domify.test", password: "viejaClave" });
     expect(oldLogin.status).toBe(401);
 
-    const newLogin = await request(app).post("/api/auth/login").send({ email: "ok@domusrd.test", password: "nuevaClave123" });
+    const newLogin = await request(app).post("/api/auth/login").send({ email: "ok@domify.test", password: "nuevaClave123" });
     expect(newLogin.status).toBe(200);
 
     // Un segundo intento con el mismo token ya no debe funcionar (de un solo uso)

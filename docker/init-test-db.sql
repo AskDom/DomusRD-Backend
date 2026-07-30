@@ -1,1 +1,1 @@
-CREATE DATABASE domusrd_test;
+CREATE DATABASE domify_test;
