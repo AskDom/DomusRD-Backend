@@ -1,6 +1,6 @@
 const prisma = require('../config/prisma');
 
-const USER_SELECT = { select: { id: true, name: true } };
+const USER_SELECT = { select: { id: true, name: true, avatar: true } };
 
 // GET /api/reviews/:propertyId — obtiene todas las reseñas de una propiedad
 const getReviews = async (req, res) => {

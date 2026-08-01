@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 const { sendPushToUser } = require('../utils/pushNotifier');
 
-const USER_SELECT = { select: { id: true, name: true } };
+const USER_SELECT = { select: { id: true, name: true, avatar: true } };
 
 // GET /api/messages — conversaciones del usuario autenticado
 const getMessages = async (req, res) => {
@@ -52,8 +52,10 @@ const sendMessage = async (req, res) => {
         id:            message.id,
         fromId:        message.fromId,
         fromName:      message.from?.name || "Usuario",
+        fromAvatar:    message.from?.avatar || null,
         toId:          message.toId,
         toName:        message.to?.name   || "Usuario",
+        toAvatar:      message.to?.avatar || null,
         propertyId:    message.propertyId,
         propertyTitle: message.property?.title || "",
         text:          message.text,
