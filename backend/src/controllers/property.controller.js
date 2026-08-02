@@ -151,7 +151,20 @@ const updateProperty = async (req, res) => {
     if (!isOwner(existing.publishedById, req, res)) return;
 
     console.log('📦 updateProperty body:', req.body);
-    const dataToUpdate = { ...req.body };
+
+    // Whitelist explícito — sin esto, cualquier campo del modelo (verified,
+    // publishedById, etc.) viajaba tal cual desde el body al UPDATE de
+    // Prisma. El dueño de una propiedad podía auto-verificarla mandando
+    // { verified: true }, o transferirla a otra cuenta mandando
+    // { publishedById: "<otro-uuid>" }.
+    const EDITABLE_FIELDS = [
+      'title', 'description', 'price', 'city', 'type', 'status',
+      'rooms', 'baths', 'parking', 'lat', 'lng', 'images',
+    ];
+    const dataToUpdate = {};
+    for (const field of EDITABLE_FIELDS) {
+      if (req.body[field] !== undefined) dataToUpdate[field] = req.body[field];
+    }
 
     // Convertimos datos numéricos si es que vienen en la actualización
     if (dataToUpdate.price !== undefined) dataToUpdate.price = parseFloat(dataToUpdate.price);
@@ -160,9 +173,6 @@ const updateProperty = async (req, res) => {
     if (dataToUpdate.rooms !== undefined) dataToUpdate.rooms = parseInt(dataToUpdate.rooms);
     if (dataToUpdate.baths !== undefined) dataToUpdate.baths = parseInt(dataToUpdate.baths);
     if (dataToUpdate.parking !== undefined) dataToUpdate.parking = parseInt(dataToUpdate.parking);
-
-    // Evitamos alterar la relación directamente pasando el userId plano
-    delete dataToUpdate.userId;
 
     const updatedProperty = await prisma.property.update({
       where: { id },
