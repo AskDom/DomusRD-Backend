@@ -1,4 +1,5 @@
 const { cloudinary } = require('../config/cloudinary');
+const prisma = require('../config/prisma');
 
 // POST /api/upload  — recibe hasta 6 imágenes y devuelve sus URLs
 const uploadImages = async (req, res) => {
@@ -21,6 +22,19 @@ const deleteImage = async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'Se requiere la URL de la imagen.' });
+
+    // Solo se puede borrar una imagen que esté en una propiedad propia o que
+    // sea el propio avatar — sin esto, cualquiera con rol Vendedor/Agente
+    // podía borrar la foto de CUALQUIER propiedad o avatar copiando la URL
+    // pública del listado.
+    const userId = req.user.userId;
+    const [ownProperty, user] = await Promise.all([
+      prisma.property.findFirst({ where: { publishedById: userId, images: { has: url } } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { avatar: true } }),
+    ]);
+    if (!ownProperty && user?.avatar !== url) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar esta imagen.' });
+    }
 
     // Extraemos el public_id de la URL de Cloudinary
     // Ejemplo URL: https://res.cloudinary.com/demo/image/upload/v123/domify/properties/abc123.jpg
