@@ -32,6 +32,11 @@ enum PropertyType {
   VILLA
 }
 
+enum Currency {
+  USD
+  DOP
+}
+
 // ── MODELS ───────────────────────────────────────────────────────────────
 
 model User {
@@ -104,6 +109,7 @@ model Property {
   title       String
   description String
   price       Float
+  currency    Currency       @default(USD)
   city        String
   type        PropertyType   @default(APARTAMENTO)
   status      PropertyStatus @default(VENTA)

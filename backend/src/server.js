@@ -3,6 +3,8 @@ require("./config/sentry"); // Cargar antes que todo lo demás para capturar cua
 const http        = require("http");
 const { Server }  = require("socket.io");
 const jwt         = require("jsonwebtoken");
+const cookie       = require("cookie");
+const { COOKIE_NAME } = require("./utils/authCookie");
 
 if (!process.env.JWT_SECRET) {
   console.error("❌ JWT_SECRET no está definida. Configúrala en .env antes de arrancar el servidor.");
@@ -13,9 +15,21 @@ const app    = require("./app");
 const server = http.createServer(app);
 
 // ── SOCKET.IO ─────────────────────────────────────────────────────────────────
+// Mismo criterio que el CORS de Express en app.js: FRONTEND_URL puede traer
+// varios orígenes separados por coma, comparados por igualdad exacta.
+const socketAllowedOrigins = [
+  ...(process.env.FRONTEND_URL || "").split(",").map((o) => o.trim()).filter(Boolean),
+  "http://localhost:3000",
+];
+
 const io = new Server(server, {
   cors: {
-    origin:      process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (!origin || origin.startsWith("http://localhost") || socketAllowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS bloqueado para: ${origin}`));
+    },
     methods:     ["GET", "POST"],
     credentials: true,
   },
@@ -25,10 +39,18 @@ const io = new Server(server, {
 const onlineUsers = new Map();
 
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
+  // La app móvil manda el token por handshake.auth (no maneja cookies).
+  // El frontend web ya no tiene el token en JS — el navegador manda la
+  // cookie httpOnly sola en el handshake HTTP inicial (necesita
+  // "withCredentials: true" del lado del cliente, ver socket.io-client).
+  let token = socket.handshake.auth?.token;
+  if (!token) {
+    const rawCookies = socket.handshake.headers.cookie;
+    if (rawCookies) token = cookie.parseCookie(rawCookies)[COOKIE_NAME];
+  }
   if (!token) return next(new Error("No autorizado"));
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     socket.userId = decoded.id || decoded.userId;
     socket.role   = decoded.role;
     next();

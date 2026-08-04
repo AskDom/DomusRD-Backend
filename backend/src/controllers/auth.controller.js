@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { generateToken } = require("../utils/jwt");
 const { sendPasswordResetEmail } = require("../utils/mailer");
+const { setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
 
 const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
@@ -37,10 +38,14 @@ const register = async (req, res) => {
     });
 
     const token = generateToken(newUser);
+    setAuthCookie(res, token);
 
     res.status(201).json({
       message: "Usuario creado con éxito",
       user: sanitizeUser(newUser),
+      // El frontend web ya no debe guardar esto — la sesión real vive en la
+      // cookie httpOnly seteada arriba. Se sigue mandando por compatibilidad
+      // con la app móvil, que no maneja cookies y lo guarda en SecureStore.
       token
     });
   } catch (error) {
@@ -69,10 +74,12 @@ const login = async (req, res) => {
     }
 
     const token = generateToken(user);
+    setAuthCookie(res, token);
 
     res.json({
       message: "Login exitoso",
       user: sanitizeUser(user),
+      // Ídem que en register(): queda solo para la app móvil.
       token
     });
   } catch (error) {
@@ -173,4 +180,11 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, me, updateAvatar, forgotPassword, resetPassword };
+// 7. LOGOUT — limpia la cookie httpOnly del lado del servidor. La app móvil
+// no la usa (solo borra el token de SecureStore en el cliente).
+const logout = (req, res) => {
+  clearAuthCookie(res);
+  res.json({ message: "Sesión cerrada." });
+};
+
+module.exports = { register, login, me, updateAvatar, forgotPassword, resetPassword, logout };

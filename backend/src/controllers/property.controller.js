@@ -13,8 +13,8 @@ const roundToZone = (n) => Math.round(n * 100) / 100;
 // 1. CREAR UNA PROPIEDAD
 const createProperty = async (req, res) => {
   try {
-    const { 
-      title, description, price, city, 
+    const {
+      title, description, price, currency, city,
       lat, lng, rooms, baths, parking, type, status, images
     } = req.body;
 
@@ -33,6 +33,7 @@ const createProperty = async (req, res) => {
         title,
         description: description || '',
         price: parseFloat(price),
+        currency: currency || 'USD',
         city,
         lat: parseFloat(lat),
         lng: parseFloat(lng),
@@ -59,7 +60,7 @@ const createProperty = async (req, res) => {
     notifyMatchingSavedSearches(newProperty, req.app.get('io'));
   } catch (error) {
     console.error('❌ Error en createProperty:', error);
-    res.status(500).json({ error: 'Error en el servidor al crear la propiedad.', detail: error.message });
+    res.status(500).json({ error: 'Error en el servidor al crear la propiedad.' });
   }
 };
 
@@ -158,7 +159,7 @@ const updateProperty = async (req, res) => {
     // { verified: true }, o transferirla a otra cuenta mandando
     // { publishedById: "<otro-uuid>" }.
     const EDITABLE_FIELDS = [
-      'title', 'description', 'price', 'city', 'type', 'status',
+      'title', 'description', 'price', 'currency', 'city', 'type', 'status',
       'rooms', 'baths', 'parking', 'lat', 'lng', 'images',
     ];
     const dataToUpdate = {};

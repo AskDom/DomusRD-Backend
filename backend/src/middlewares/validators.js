@@ -72,6 +72,11 @@ const createPropertyValidator = [
     .notEmpty().withMessage('El precio es requerido')
     .isFloat({ min: 1 }).withMessage('El precio debe ser mayor a 0'),
 
+  body('currency')
+    .optional()
+    .trim()
+    .isIn(['USD', 'DOP']).withMessage('Moneda inválida'),
+
   body('city')
     .trim()
     .notEmpty().withMessage('La ciudad es requerida')
@@ -139,6 +144,11 @@ const updatePropertyValidator = [
   body('price')
     .optional()
     .isFloat({ min: 1 }).withMessage('El precio debe ser mayor a 0'),
+
+  body('currency')
+    .optional()
+    .trim()
+    .isIn(['USD', 'DOP']).withMessage('Moneda inválida'),
 
   body('description')
     .optional()
