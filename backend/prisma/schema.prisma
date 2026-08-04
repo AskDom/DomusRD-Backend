@@ -111,6 +111,7 @@ model Property {
   price       Float
   currency    Currency       @default(USD)
   city        String
+  sector      String?        // Barrio/sector dentro de la ciudad (ej. "Piantini", "Sabana Larga") — opcional, para búsquedas más finas que solo la ciudad.
   type        PropertyType   @default(APARTAMENTO)
   status      PropertyStatus @default(VENTA)
 

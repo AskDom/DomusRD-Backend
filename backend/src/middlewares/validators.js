@@ -82,6 +82,11 @@ const createPropertyValidator = [
     .notEmpty().withMessage('La ciudad es requerida')
     .isLength({ max: 80 }).withMessage('La ciudad no puede exceder 80 caracteres'),
 
+  body('sector')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 80 }).withMessage('El sector no puede exceder 80 caracteres'),
+
   body('lat')
     .notEmpty().withMessage('La latitud es requerida')
     .isFloat({ min: -90, max: 90 }).withMessage('Latitud inválida'),
@@ -149,6 +154,11 @@ const updatePropertyValidator = [
     .optional()
     .trim()
     .isIn(['USD', 'DOP']).withMessage('Moneda inválida'),
+
+  body('sector')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 80 }).withMessage('El sector no puede exceder 80 caracteres'),
 
   body('description')
     .optional()

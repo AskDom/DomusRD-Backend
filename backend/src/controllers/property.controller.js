@@ -14,7 +14,7 @@ const roundToZone = (n) => Math.round(n * 100) / 100;
 const createProperty = async (req, res) => {
   try {
     const {
-      title, description, price, currency, city,
+      title, description, price, currency, city, sector,
       lat, lng, rooms, baths, parking, type, status, images
     } = req.body;
 
@@ -35,6 +35,7 @@ const createProperty = async (req, res) => {
         price: parseFloat(price),
         currency: currency || 'USD',
         city,
+        sector: sector || null,
         lat: parseFloat(lat),
         lng: parseFloat(lng),
         rooms: parseInt(rooms) || 1,
@@ -159,7 +160,7 @@ const updateProperty = async (req, res) => {
     // { verified: true }, o transferirla a otra cuenta mandando
     // { publishedById: "<otro-uuid>" }.
     const EDITABLE_FIELDS = [
-      'title', 'description', 'price', 'currency', 'city', 'type', 'status',
+      'title', 'description', 'price', 'currency', 'city', 'sector', 'type', 'status',
       'rooms', 'baths', 'parking', 'lat', 'lng', 'images',
     ];
     const dataToUpdate = {};
