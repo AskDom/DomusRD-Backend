@@ -15,7 +15,7 @@ const registerValidator = [
 
   body('password')
     .notEmpty().withMessage('La contraseña es requerida')
-    .isLength({ min: 5 }).withMessage('La contraseña debe tener al menos 5 caracteres'),
+    .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres'),
 
   body('role')
     .optional()
@@ -53,7 +53,7 @@ const resetPasswordValidator = [
 
   body('password')
     .notEmpty().withMessage('La contraseña es requerida')
-    .isLength({ min: 5 }).withMessage('La contraseña debe tener al menos 5 caracteres'),
+    .isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres'),
 ];
 
 // ── PROPERTIES ────────────────────────────────────────────────────────────────

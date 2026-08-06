@@ -43,10 +43,12 @@ const register = async (req, res) => {
     res.status(201).json({
       message: "Usuario creado con éxito",
       user: sanitizeUser(newUser),
-      // El frontend web ya no debe guardar esto — la sesión real vive en la
-      // cookie httpOnly seteada arriba. Se sigue mandando por compatibilidad
-      // con la app móvil, que no maneja cookies y lo guarda en SecureStore.
-      token
+      // La sesión real vive en la cookie httpOnly seteada arriba — el
+      // frontend web no necesita el JWT y no debe recibirlo (si algo llegara
+      // a loguear el body de la respuesta, no habría nada sensible que
+      // capturar). Solo lo mandamos a la app móvil, que no maneja cookies y
+      // lo guarda en SecureStore; el frontend web siempre manda este header.
+      ...(req.headers["x-domify-client"] !== "web" && { token }),
     });
   } catch (error) {
     console.error(error);
@@ -80,7 +82,7 @@ const login = async (req, res) => {
       message: "Login exitoso",
       user: sanitizeUser(user),
       // Ídem que en register(): queda solo para la app móvil.
-      token
+      ...(req.headers["x-domify-client"] !== "web" && { token }),
     });
   } catch (error) {
     console.error(error);
