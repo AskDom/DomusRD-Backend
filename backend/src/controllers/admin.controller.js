@@ -1,12 +1,22 @@
 const prisma = require('../config/prisma');
 
+const MAX_PAGE_SIZE = 100;
+
+// Sin esto, ?limit=999999999 dispara una query sin techo (y un limit <= 0
+// rompe el `take` de Prisma). Clampea a [1, MAX_PAGE_SIZE] y la página a >= 1.
+function clampPagination(page, limit) {
+  const safePage  = Math.max(Number(page) || 1, 1);
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), MAX_PAGE_SIZE);
+  return { page: safePage, limit: safeLimit, skip: (safePage - 1) * safeLimit };
+}
+
 // ── USUARIOS ─────────────────────────────────────────────────────────────────
 
 // GET /api/admin/users
 const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', role = '' } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { search = '', role = '' } = req.query;
+    const { page, limit, skip } = clampPagination(req.query.page, req.query.limit);
 
     const where = {
       ...(search && { OR: [
@@ -20,7 +30,7 @@ const getUsers = async (req, res) => {
       prisma.user.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true, name: true, email: true, avatar: true,
@@ -31,7 +41,7 @@ const getUsers = async (req, res) => {
       prisma.user.count({ where }),
     ]);
 
-    res.json({ users, total, page: Number(page), totalPages: Math.ceil(total / limit) });
+    res.json({ users, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error('getUsers:', err);
     res.status(500).json({ error: 'Error al obtener usuarios.' });
@@ -81,8 +91,8 @@ const deleteUser = async (req, res) => {
 // GET /api/admin/properties
 const getAdminProperties = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', verified = '' } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { search = '', verified = '' } = req.query;
+    const { page, limit, skip } = clampPagination(req.query.page, req.query.limit);
 
     const where = {
       ...(search && { OR: [
@@ -94,7 +104,7 @@ const getAdminProperties = async (req, res) => {
 
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
-        where, skip, take: Number(limit),
+        where, skip, take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           publishedBy: { select: { id: true, name: true, email: true, avatar: true } },
@@ -104,7 +114,7 @@ const getAdminProperties = async (req, res) => {
       prisma.property.count({ where }),
     ]);
 
-    res.json({ properties, total, page: Number(page), totalPages: Math.ceil(total / limit) });
+    res.json({ properties, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error('getAdminProperties:', err);
     res.status(500).json({ error: 'Error al obtener propiedades.' });
@@ -169,4 +179,7 @@ const getStats = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, updateUserRole, deleteUser, getAdminProperties, verifyProperty, deleteAdminProperty, getStats };
+module.exports = {
+  getUsers, updateUserRole, deleteUser, getAdminProperties, verifyProperty, deleteAdminProperty, getStats,
+  clampPagination, // exportado solo para poder testearlo directo, sin pasar por HTTP
+};
