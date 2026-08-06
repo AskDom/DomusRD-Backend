@@ -51,7 +51,13 @@ model User {
 
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  
+
+  // 2FA (TOTP) — hoy solo se ofrece a ADMIN. totpSecret queda null mientras
+  // no se activa; durante el setup se guarda temporalmente ahí hasta que el
+  // usuario confirma un código válido y totpEnabled pasa a true.
+  totpSecret       String?
+  totpEnabled      Boolean   @default(false)
+
   properties      Property[]
   favorites       Favorite[]
   sentMessages    Message[]  @relation("MessagesSent")
