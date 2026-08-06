@@ -1,4 +1,9 @@
+jest.mock("../../src/config/prisma", () => ({
+  user: { findUnique: jest.fn() },
+}));
+
 const jwt = require("jsonwebtoken");
+const prisma = require("../../src/config/prisma");
 const { protect, requireRole, isOwner } = require("../../src/middlewares/auth.middleware");
 
 function mockRes() {
@@ -35,8 +40,9 @@ describe("auth.middleware protect()", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("deja pasar un token válido y llena req.user desde el payload", async () => {
-    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "VENDEDOR" }, process.env.JWT_SECRET);
+  it("deja pasar un token válido (con tokenVersion vigente) y llena req.user desde el payload", async () => {
+    prisma.user.findUnique.mockResolvedValue({ tokenVersion: 0 });
+    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "VENDEDOR", tokenVersion: 0 }, process.env.JWT_SECRET);
     const req   = { headers: { authorization: `Bearer ${token}` } };
     const res   = mockRes();
     const next  = jest.fn();
@@ -45,6 +51,19 @@ describe("auth.middleware protect()", () => {
 
     expect(next).toHaveBeenCalled();
     expect(req.user).toEqual({ userId: "user-1", email: "a@b.com", role: "VENDEDOR" });
+  });
+
+  it("rechaza un token cuyo tokenVersion ya no coincide (sesión invalidada)", async () => {
+    prisma.user.findUnique.mockResolvedValue({ tokenVersion: 1 });
+    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "VENDEDOR", tokenVersion: 0 }, process.env.JWT_SECRET);
+    const req   = { headers: { authorization: `Bearer ${token}` } };
+    const res   = mockRes();
+    const next  = jest.fn();
+
+    await protect(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
   });
 });
 

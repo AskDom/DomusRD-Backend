@@ -50,9 +50,12 @@ const updateUserRole = async (req, res) => {
     if (req.params.id === req.user.userId && role !== 'ADMIN') {
       return res.status(403).json({ error: 'No puedes cambiar tu propio rol de ADMIN.' });
     }
+    // tokenVersion++ para que cualquier sesión que ese usuario tenga abierta
+    // con el rol viejo quede inválida al instante, en vez de seguir sirviendo
+    // (con el rol de antes) hasta que el JWT expire por su cuenta.
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { role },
+      data: { role, tokenVersion: { increment: 1 } },
       select: { id: true, name: true, email: true, role: true },
     });
     res.json({ user });
