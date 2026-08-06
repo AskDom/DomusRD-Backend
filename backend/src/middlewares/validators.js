@@ -56,6 +56,27 @@ const resetPasswordValidator = [
     .isLength({ min: 5 }).withMessage('La contraseña debe tener al menos 5 caracteres'),
 ];
 
+// ── 2FA ───────────────────────────────────────────────────────────────────────
+const twoFactorCodeValidator = [
+  body('code')
+    .trim()
+    .notEmpty().withMessage('El código es requerido')
+    .isLength({ min: 6, max: 6 }).withMessage('El código debe tener 6 dígitos')
+    .isNumeric().withMessage('El código debe ser numérico'),
+];
+
+const twoFactorVerifyValidator = [
+  body('tempToken')
+    .trim()
+    .notEmpty().withMessage('Falta el token temporal'),
+  ...twoFactorCodeValidator,
+];
+
+const twoFactorDisableValidator = [
+  body('password')
+    .notEmpty().withMessage('La contraseña es requerida'),
+];
+
 // ── PROPERTIES ────────────────────────────────────────────────────────────────
 const createPropertyValidator = [
   body('title')
@@ -209,6 +230,9 @@ module.exports = {
   loginValidator,
   forgotPasswordValidator,
   resetPasswordValidator,
+  twoFactorCodeValidator,
+  twoFactorVerifyValidator,
+  twoFactorDisableValidator,
   createPropertyValidator,
   updatePropertyValidator,
   reviewValidator,

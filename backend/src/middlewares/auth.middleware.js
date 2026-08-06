@@ -36,6 +36,12 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    // Un token "pendiente de 2FA" (ver utils/jwt.js) solo sirve para
+    // /api/auth/2fa/verify — no para autenticarse en el resto de la API,
+    // aunque esté firmado y sin expirar.
+    if (decoded.twoFactorPending) {
+      return res.status(401).json({ error: 'No autorizado, completa la verificación en dos pasos.' });
+    }
     // decoded tiene: { userId, role }  ← el rol viene en MAYÚSCULAS (VENDEDOR, AGENTE, CLIENTE)
     req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
     return next();
@@ -54,7 +60,9 @@ const attachUserIfPresent = (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
-      req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
+      if (!decoded.twoFactorPending) {
+        req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
+      }
     } catch {
       // Token inválido/expirado — seguimos como visitante anónimo, sin romper la petición.
     }
