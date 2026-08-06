@@ -48,6 +48,51 @@ describe("POST /api/auth/register", () => {
 
     expect(res.status).toBe(409);
   });
+
+  it("rechaza un password de menos de 8 caracteres (400)", async () => {
+    const res = await request(app).post("/api/auth/register").send({
+      name: "Ana", email: "corta@domify.test", password: "corta12",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.fields.some((f) => f.field === "password")).toBe(true);
+  });
+});
+
+describe("El JWT en el body de register/login solo va al cliente móvil", () => {
+  it("register sin el header x-domify-client incluye el token (app móvil)", async () => {
+    const res = await request(app).post("/api/auth/register").send({
+      name: "Móvil", email: "movil-register@domify.test", password: "clave1234",
+    });
+
+    expect(res.body.token).toEqual(expect.any(String));
+  });
+
+  it("register con x-domify-client: web NO incluye el token, pero sí abre la cookie", async () => {
+    const res = await request(app)
+      .post("/api/auth/register")
+      .set("x-domify-client", "web")
+      .send({ name: "Web", email: "web-register@domify.test", password: "clave1234" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.token).toBeUndefined();
+    expect(res.headers["set-cookie"]).toBeDefined();
+  });
+
+  it("login con x-domify-client: web NO incluye el token, pero sí abre la cookie", async () => {
+    await request(app).post("/api/auth/register").send({
+      name: "Web Login", email: "web-login@domify.test", password: "clave1234",
+    });
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .set("x-domify-client", "web")
+      .send({ email: "web-login@domify.test", password: "clave1234" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeUndefined();
+    expect(res.headers["set-cookie"]).toBeDefined();
+  });
 });
 
 describe("POST /api/auth/login", () => {
