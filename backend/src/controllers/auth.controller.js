@@ -7,6 +7,7 @@ const { setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
 
 const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
+const BCRYPT_COST = 12; // subido de 10 — barato hoy, sube el costo de fuerza bruta offline si la DB se filtra
 
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
@@ -30,7 +31,7 @@ const register = async (req, res) => {
       return res.status(409).json({ error: "El correo ya está registrado" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_COST);
     const finalRole = VALID_ROLES.includes(role?.toUpperCase()) ? role.toUpperCase() : "CLIENTE";
 
     const newUser = await prisma.user.create({
@@ -91,7 +92,6 @@ const login = async (req, res) => {
 // 3. GET USUARIO ACTUAL (para mantener sesión al recargar)
 const me = async (req, res) => {
   try {
-    console.log('🔍 me() - req.user:', req.user);
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado" });
@@ -167,7 +167,7 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ error: "El enlace es inválido o ya expiró." });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_COST);
     await prisma.user.update({
       where: { id: user.id },
       data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
