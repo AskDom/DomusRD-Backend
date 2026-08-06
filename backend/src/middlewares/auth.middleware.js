@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../config/prisma');
 const { COOKIE_NAME } = require('../utils/authCookie');
 
 // Métodos que cambian estado — les exigimos un header custom cuando la
@@ -36,6 +37,19 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+
+    // tokenVersion permite invalidar este token antes de que expire —
+    // logout-all, reset de password o un cambio de rol por un admin suben
+    // el contador en la DB, y cualquier JWT emitido antes queda inválido
+    // al instante aunque su firma y expiración sigan siendo válidas.
+    const currentUser = await prisma.user.findUnique({
+      where:  { id: decoded.id },
+      select: { tokenVersion: true },
+    });
+    if (!currentUser || currentUser.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: 'No autorizado, la sesión fue invalidada. Inicia sesión de nuevo.' });
+    }
+
     // decoded tiene: { userId, role }  ← el rol viene en MAYÚSCULAS (VENDEDOR, AGENTE, CLIENTE)
     req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
     return next();
@@ -49,12 +63,20 @@ const protect = async (req, res, next) => {
 // rechaza la petición si no hay token o es inválido. Para rutas públicas
 // (listado/detalle de propiedades) donde el controller necesita saber si
 // hay sesión para decidir cuánto detalle devolver (p.ej. ubicación exacta).
-const attachUserIfPresent = (req, res, next) => {
+const attachUserIfPresent = async (req, res, next) => {
   const { token } = extractToken(req);
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
-      req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
+      const currentUser = await prisma.user.findUnique({
+        where:  { id: decoded.id },
+        select: { tokenVersion: true },
+      });
+      if (currentUser && currentUser.tokenVersion === decoded.tokenVersion) {
+        req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
+      }
+      // tokenVersion no coincide (o el usuario ya no existe) — seguimos como
+      // visitante anónimo, igual que con un token inválido/expirado.
     } catch {
       // Token inválido/expirado — seguimos como visitante anónimo, sin romper la petición.
     }

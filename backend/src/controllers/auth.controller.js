@@ -170,7 +170,10 @@ const resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
       where: { id: user.id },
-      data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
+      // tokenVersion++ invalida cualquier sesión abierta con la contraseña
+      // vieja — si alguien más tenía el JWT (ej. la cuenta se comprometió),
+      // este reset también lo saca.
+      data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null, tokenVersion: { increment: 1 } },
     });
 
     res.json({ message: "Contraseña actualizada con éxito." });
@@ -187,4 +190,21 @@ const logout = (req, res) => {
   res.json({ message: "Sesión cerrada." });
 };
 
-module.exports = { register, login, me, updateAvatar, forgotPassword, resetPassword, logout };
+// 8. LOGOUT EN TODOS LOS DISPOSITIVOS — sube tokenVersion, así que cualquier
+// JWT emitido antes de este momento (en este navegador o en cualquier otro)
+// deja de servir de inmediato, sin esperar a que expire.
+const logoutAllSessions = async (req, res) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user.userId },
+      data:  { tokenVersion: { increment: 1 } },
+    });
+    clearAuthCookie(res);
+    res.json({ message: "Sesión cerrada en todos los dispositivos." });
+  } catch (error) {
+    console.error("❌ Error en logoutAllSessions:", error);
+    res.status(500).json({ error: "Error al cerrar las sesiones." });
+  }
+};
+
+module.exports = { register, login, me, updateAvatar, forgotPassword, resetPassword, logout, logoutAllSessions };

@@ -97,4 +97,19 @@ describe("POST /api/auth/reset-password", () => {
     const reuse = await request(app).post("/api/auth/reset-password").send({ token, password: "otraClave456" });
     expect(reuse.status).toBe(400);
   });
+
+  it("invalida cualquier sesión abierta con la contraseña vieja (tokenVersion)", async () => {
+    const registerRes = await request(app).post("/api/auth/register").send({
+      name: "Sesion Vieja", email: "sesion-vieja@domify.test", password: "viejaClave",
+    });
+    const oldToken = registerRes.body.token;
+
+    const resetToken = await requestResetToken("sesion-vieja@domify.test");
+    await request(app).post("/api/auth/reset-password").send({ token: resetToken, password: "nuevaClave123" });
+
+    const meWithOldToken = await request(app)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${oldToken}`);
+    expect(meWithOldToken.status).toBe(401);
+  });
 });

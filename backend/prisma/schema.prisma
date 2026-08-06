@@ -51,7 +51,14 @@ model User {
 
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  
+
+  // Se incluye en cada JWT emitido; protect() lo compara contra este valor
+  // en cada request. Subirlo (logout-all, reset de password, cambio de rol
+  // por un admin) invalida al instante cualquier token viejo, aunque no
+  // haya expirado — sin esto un JWT robado o desactualizado sigue sirviendo
+  // hasta sus 7 días de vida.
+  tokenVersion     Int       @default(0)
+
   properties      Property[]
   favorites       Favorite[]
   sentMessages    Message[]  @relation("MessagesSent")
