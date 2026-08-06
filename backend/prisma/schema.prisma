@@ -88,6 +88,9 @@ model Notification {
 
   createdAt  DateTime @default(now())
 
+  // Mismo caso que Message: todo getNotifications/getUnreadCount filtra
+  // por userId — sin índice, table scan completo en cada carga.
+  @@index([userId])
   @@map("notifications")
 }
 
@@ -101,6 +104,7 @@ model SavedSearch {
 
   createdAt DateTime @default(now())
 
+  @@index([userId])
   @@map("saved_searches")
 }
 
@@ -135,6 +139,17 @@ model Property {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  // type/status son igualdad exacta y price es rango (gte/lte) en
+  // buildPropertyWhere() — un índice B-tree ayuda directo a los tres.
+  // createdAt cubre el ORDER BY que usa cualquier listado. city/sector NO
+  // se indexan acá: se filtran con `contains` (ILIKE '%texto%'), que un
+  // índice B-tree normal no acelera — necesitarían un índice GIN con
+  // pg_trgm, que es un cambio más grande (preview feature de Prisma +
+  // extensión de Postgres) y queda fuera de este PR a propósito.
+  @@index([type])
+  @@index([status])
+  @@index([price])
+  @@index([createdAt])
   @@map("properties")
 }
 
@@ -170,6 +185,12 @@ model Message {
 
   createdAt  DateTime @default(now())
 
+  // El inbox filtra por `OR: [{ fromId: userId }, { toId: userId }]` — sin
+  // índice en estos dos campos, cada carga del inbox es un table scan
+  // completo de messages.
+  @@index([fromId])
+  @@index([toId])
+  @@index([propertyId])
   @@map("messages")
 }
 
