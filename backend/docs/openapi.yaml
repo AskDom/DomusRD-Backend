@@ -1,0 +1,1108 @@
+openapi: 3.0.3
+info:
+  title: Domify API
+  description: >
+    API del portal inmobiliario Domify. La consumen el frontend web y
+    Domify-Mobile.
+
+
+    **Autenticación**: la mayoría de las rutas protegidas aceptan la sesión
+    de dos formas — una cookie httpOnly `domify-token` (frontend web) o un
+    header `Authorization: Bearer <token>` (app móvil). Las peticiones que
+    cambian estado y usan la cookie (no el header) también necesitan el
+    header `x-domify-client: web`, como defensa contra CSRF.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:5000
+    description: Desarrollo local
+  - url: https://api.domify.com
+    description: Producción (ajustar según el dominio real)
+
+tags:
+  - name: Auth
+  - name: Properties
+  - name: Upload
+  - name: Favorites
+  - name: Messages
+  - name: Reviews
+  - name: Users
+  - name: SavedSearches
+  - name: Notifications
+  - name: Admin
+  - name: Health
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: domify-token
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Mensaje de error legible."
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Datos inválidos"
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    Role:
+      type: string
+      enum: [CLIENTE, VENDEDOR, AGENTE, ADMIN]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        avatar:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        totpEnabled:
+          type: boolean
+          description: Solo relevante para ADMIN (ver checklist de 2FA).
+
+    Property:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+          enum: [USD, DOP]
+        city:
+          type: string
+        sector:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [APARTAMENTO, CASA, VILLA]
+        status:
+          type: string
+          enum: [VENTA, RENTA, VENDIDO, RENTADO]
+        rooms:
+          type: integer
+        baths:
+          type: integer
+        parking:
+          type: integer
+        lat:
+          type: number
+          description: >
+            Redondeada a ~1km sin sesión iniciada, y ausente del todo en
+            GET /api/properties/{id} sin sesión.
+        lng:
+          type: number
+        images:
+          type: array
+          items:
+            type: string
+        verified:
+          type: boolean
+        publishedById:
+          type: string
+          format: uuid
+        publishedBy:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fromId:
+          type: string
+          format: uuid
+        toId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        text:
+          type: string
+        read:
+          type: boolean
+        replyToId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        message:
+          type: string
+        propertyId:
+          type: string
+          nullable: true
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    SavedSearch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        filters:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+        hasMore:
+          type: boolean
+
+  responses:
+    Unauthorized:
+      description: No autenticado (falta o es inválido el token/cookie).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Autenticado, pero sin permiso para esta acción.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: El recurso no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationFailed:
+      description: Body o parámetros inválidos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Estado del servidor
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  message: { type: string }
+                  onlineUsers: { type: integer }
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Crear una cuenta
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 60 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, description: "8 en las ramas con el fix de seguridad aplicado; 5 en main al momento de escribir esto." }
+                role:
+                  type: string
+                  enum: [CLIENTE, VENDEDOR, AGENTE]
+                  description: ADMIN no se puede auto-asignar por acá.
+      responses:
+        "201":
+          description: Cuenta creada — abre sesión (cookie httpOnly) de una vez.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+                  token:
+                    type: string
+                    description: Solo si el request no viene del frontend web (sin el header x-domify-client:web).
+        "400": { $ref: '#/components/responses/ValidationFailed' }
+        "409": { description: "El correo ya está registrado." }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Login exitoso, o segundo paso de 2FA pendiente.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      message: { type: string }
+                      user: { $ref: '#/components/schemas/User' }
+                      token: { type: string }
+                  - type: object
+                    description: Cuenta ADMIN con 2FA activo (ver rama feature/admin-2fa).
+                    properties:
+                      requiresTwoFactor: { type: boolean, example: true }
+                      tempToken: { type: string, description: "JWT de 5 minutos, solo válido en /api/auth/2fa/verify." }
+        "400": { $ref: '#/components/responses/ValidationFailed' }
+        "401": { description: "Credenciales incorrectas." }
+        "429": { description: "Demasiados intentos — rate limit por IP y/o por cuenta." }
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Solicitar link de recuperación de contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200":
+          description: >
+            Siempre responde 200 con el mismo mensaje, exista o no la cuenta
+            (para no revelar qué correos están registrados).
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Restablecer contraseña con el token del correo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        "200": { description: "Contraseña actualizada." }
+        "400": { description: "El enlace es inválido, ya expiró, o ya se usó." }
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Usuario autenticado actual
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cerrar sesión (limpia la cookie del lado del servidor)
+      responses:
+        "200": { description: "Sesión cerrada." }
+
+  /api/auth/avatar:
+    post:
+      tags: [Auth]
+      summary: Actualizar foto de perfil
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar: { type: string, format: binary }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+        "400": { description: "No se recibió ninguna imagen." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── PROPERTIES ────────────────────────────────────────────────────────────
+  /api/properties:
+    get:
+      tags: [Properties]
+      summary: Listar propiedades (con filtros y paginación)
+      security: []
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: city, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string, enum: [APARTAMENTO, CASA, VILLA] } }
+        - { name: status, in: query, schema: { type: string, enum: [VENTA, RENTA, VENDIDO, RENTADO] } }
+        - { name: rooms, in: query, schema: { type: integer } }
+        - { name: minPrice, in: query, schema: { type: number } }
+        - { name: maxPrice, in: query, schema: { type: number } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 12, maximum: 50 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  properties:
+                    type: array
+                    items: { $ref: '#/components/schemas/Property' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+    post:
+      tags: [Properties]
+      summary: Publicar una propiedad
+      description: Requiere rol VENDEDOR, AGENTE o ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, price, city, lat, lng]
+              properties:
+                title: { type: string, minLength: 5, maxLength: 120 }
+                description: { type: string, minLength: 10, maxLength: 2000 }
+                price: { type: number, minimum: 1 }
+                currency: { type: string, enum: [USD, DOP] }
+                city: { type: string, maxLength: 80 }
+                sector: { type: string, maxLength: 80 }
+                lat: { type: number, minimum: -90, maximum: 90 }
+                lng: { type: number, minimum: -180, maximum: 180 }
+                rooms: { type: integer, minimum: 1, maximum: 20 }
+                baths: { type: integer, minimum: 1, maximum: 20 }
+                parking: { type: integer, minimum: 0, maximum: 20 }
+                type: { type: string, enum: [APARTAMENTO, CASA, VILLA] }
+                status: { type: string, enum: [VENTA, RENTA, VENDIDO, RENTADO] }
+                images:
+                  type: array
+                  maxItems: 6
+                  items: { type: string }
+      responses:
+        "201":
+          description: Creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  property: { $ref: '#/components/schemas/Property' }
+        "400": { $ref: '#/components/responses/ValidationFailed' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/properties/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Properties]
+      summary: Detalle de una propiedad
+      security: []
+      description: >
+        Sin sesión iniciada, la respuesta no incluye lat/lng en absoluto —
+        el mapa del detalle queda bloqueado hasta iniciar sesión.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Property' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Properties]
+      summary: Actualizar una propiedad propia
+      description: >
+        Requiere ser el dueño (publishedById) y rol VENDEDOR/AGENTE/ADMIN.
+        Los campos no editables (verified, publishedById) se ignoran aunque
+        se manden — whitelist explícito en el controller.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Cualquier subconjunto de los campos editables de Property.
+      responses:
+        "200":
+          description: Actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  property: { $ref: '#/components/schemas/Property' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Properties]
+      summary: Eliminar una propiedad propia
+      description: Requiere ser el dueño y rol VENDEDOR/AGENTE/ADMIN.
+      responses:
+        "200": { description: "Eliminada." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ── UPLOAD ────────────────────────────────────────────────────────────────
+  /api/upload:
+    post:
+      tags: [Upload]
+      summary: Subir hasta 6 imágenes a Cloudinary
+      description: Requiere rol VENDEDOR o AGENTE.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, format: binary }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  urls:
+                    type: array
+                    items: { type: string }
+        "400": { description: "No se recibieron imágenes." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Upload]
+      summary: Eliminar una imagen por su URL pública
+      description: >
+        Solo se puede borrar una imagen que esté en una propiedad propia o
+        que sea el propio avatar (fix de un IDOR — ver tests/integration/upload.test.js).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+      responses:
+        "200": { description: "Eliminada." }
+        "400": { description: "Falta la URL." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403":
+          description: "La imagen no pertenece a una propiedad propia ni es tu avatar."
+
+  # ── FAVORITES ─────────────────────────────────────────────────────────────
+  /api/favorites:
+    get:
+      tags: [Favorites]
+      summary: IDs de propiedades marcadas como favoritas
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  favorites:
+                    type: array
+                    items: { type: string, format: uuid }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/favorites/{propertyId}:
+    parameters:
+      - { name: propertyId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Favorites]
+      summary: Agregar una propiedad a favoritos
+      responses:
+        "201": { description: "Agregada." }
+        "200": { description: "Ya estaba en favoritos (idempotente)." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Favorites]
+      summary: Quitar una propiedad de favoritos
+      responses:
+        "200": { description: "Eliminada de favoritos." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── MESSAGES ──────────────────────────────────────────────────────────────
+  /api/messages:
+    get:
+      tags: [Messages]
+      summary: Conversaciones del usuario autenticado
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items: { $ref: '#/components/schemas/Message' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Messages]
+      summary: Enviar un mensaje
+      description: >
+        fromId siempre es el usuario autenticado — cualquier fromId que se
+        mande en el body se ignora (ver tests/integration/messages.test.js).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toId, propertyId, text]
+              properties:
+                toId: { type: string, format: uuid }
+                propertyId: { type: string, format: uuid }
+                text: { type: string, maxLength: 1000 }
+                replyToId: { type: string, nullable: true }
+      responses:
+        "201":
+          description: Enviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { $ref: '#/components/schemas/Message' }
+        "400": { $ref: '#/components/responses/ValidationFailed' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/messages/{id}/read:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Messages]
+      summary: Marcar un mensaje como leído
+      description: Solo tiene efecto si el usuario autenticado es el destinatario (toId).
+      responses:
+        "200": { description: "OK (no-op si no sos el destinatario)." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/messages/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Messages]
+      summary: Eliminar un mensaje
+      description: Solo tiene efecto si el usuario autenticado es el destinatario (toId).
+      responses:
+        "200": { description: "OK (no-op si no sos el destinatario)." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── REVIEWS ───────────────────────────────────────────────────────────────
+  /api/reviews/{propertyId}:
+    parameters:
+      - { name: propertyId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Reviews]
+      summary: Reseñas de una propiedad
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reviews:
+                    type: array
+                    items: { $ref: '#/components/schemas/Review' }
+                  average: { type: number }
+                  total: { type: integer }
+    post:
+      tags: [Reviews]
+      summary: Crear o actualizar tu reseña de una propiedad
+      description: Upsert — un segundo POST del mismo usuario actualiza en vez de duplicar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, comment]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  review: { $ref: '#/components/schemas/Review' }
+        "400": { $ref: '#/components/responses/ValidationFailed' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { description: "No podés reseñar tu propia propiedad." }
+        "404": { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Reviews]
+      summary: Eliminar tu reseña de una propiedad
+      responses:
+        "200": { description: "OK (no-op si nunca la reseñaste)." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── USERS ─────────────────────────────────────────────────────────────────
+  /api/users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Users]
+      summary: Perfil público de un vendedor/agente
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+                  stats:
+                    type: object
+                    properties:
+                      propertiesCount: { type: integer }
+                      avgRating: { type: number, nullable: true }
+                      reviewsCount: { type: integer }
+                  properties:
+                    type: array
+                    items: { $ref: '#/components/schemas/Property' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ── SAVED SEARCHES ────────────────────────────────────────────────────────
+  /api/saved-searches:
+    get:
+      tags: [SavedSearches]
+      summary: Búsquedas guardadas del usuario
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  searches:
+                    type: array
+                    items: { $ref: '#/components/schemas/SavedSearch' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [SavedSearches]
+      summary: Guardar una búsqueda (filtros) con notificaciones futuras
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, filters]
+              properties:
+                name: { type: string }
+                filters:
+                  type: object
+                  description: "Subconjunto de: search, city, type, status, rooms, minPrice, maxPrice."
+      responses:
+        "201":
+          description: Creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  search: { $ref: '#/components/schemas/SavedSearch' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/saved-searches/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [SavedSearches]
+      summary: Eliminar una búsqueda guardada propia
+      responses:
+        "200": { description: "Eliminada." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Notificaciones del usuario (últimas 50)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+                  unreadCount: { type: integer }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Marcar todas las notificaciones como leídas
+      responses:
+        "200": { description: "OK." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/notifications/{id}/read:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Notifications]
+      summary: Marcar una notificación como leída
+      responses:
+        "200": { description: "OK." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/notifications/push-token:
+    post:
+      tags: [Notifications]
+      summary: Registrar (o reasignar) un Expo push token del dispositivo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+                platform: { type: string, nullable: true, example: "ios" }
+      responses:
+        "201": { description: "Registrado." }
+        "400": { description: "Falta el token." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Notifications]
+      summary: Desregistrar todos los push tokens del usuario (logout)
+      responses:
+        "200": { description: "OK." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── ADMIN ─────────────────────────────────────────────────────────────────
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: Estadísticas generales
+      description: Requiere rol ADMIN.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers: { type: integer }
+                  totalProperties: { type: integer }
+                  pendingVerification: { type: integer }
+                  totalMessages: { type: integer }
+                  totalFavorites: { type: integer }
+                  usersByRole:
+                    type: array
+                    items:
+                      type: object
+                      properties: { role: { $ref: '#/components/schemas/Role' }, count: { type: integer } }
+                  propertiesByType:
+                    type: array
+                    items:
+                      type: object
+                      properties: { type: { type: string }, count: { type: integer } }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: Listar usuarios (búsqueda, filtro por rol, paginación)
+      description: Requiere rol ADMIN.
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: role, in: query, schema: { $ref: '#/components/schemas/Role' } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 20, maximum: 100 }, description: "Clampeado a 100 (ver PR #15)." }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: '#/components/schemas/User' }
+                  total: { type: integer }
+                  page: { type: integer }
+                  totalPages: { type: integer }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/users/{id}/role:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Admin]
+      summary: Cambiar el rol de un usuario
+      description: >
+        Requiere rol ADMIN. Un admin no puede quitarse su propio rol de
+        ADMIN (auto-protección contra quedar sin acceso).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: '#/components/schemas/Role' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        "400": { description: "Rol inválido." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { description: "No podés cambiar tu propio rol de ADMIN, o no sos ADMIN." }
+
+  /api/admin/users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Admin]
+      summary: Eliminar un usuario
+      description: Requiere rol ADMIN. Un admin no puede eliminar su propia cuenta.
+      responses:
+        "200": { description: "Eliminado." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { description: "No podés eliminar tu propia cuenta, o no sos ADMIN." }
+
+  /api/admin/properties:
+    get:
+      tags: [Admin]
+      summary: Listar todas las propiedades (búsqueda, filtro verificadas, paginación)
+      description: Requiere rol ADMIN.
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: verified, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  properties:
+                    type: array
+                    items: { $ref: '#/components/schemas/Property' }
+                  total: { type: integer }
+                  page: { type: integer }
+                  totalPages: { type: integer }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/properties/{id}/verify:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Admin]
+      summary: Marcar una propiedad como verificada (o quitarle la verificación)
+      description: >
+        Requiere rol ADMIN — es una decisión de diseño permanente, no
+        delegable a VENDEDOR/AGENTE aunque el volumen crezca (ver memoria
+        del proyecto: domusrd_property_verification_policy).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verified]
+              properties:
+                verified: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  property: { $ref: '#/components/schemas/Property' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/properties/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Admin]
+      summary: Eliminar cualquier propiedad
+      description: Requiere rol ADMIN.
+      responses:
+        "200": { description: "Eliminada." }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }

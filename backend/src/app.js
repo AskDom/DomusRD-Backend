@@ -4,8 +4,19 @@ const cookieParser = require("cookie-parser");
 const helmet       = require("helmet");
 const path         = require("path");
 const rateLimit    = require("express-rate-limit");
+const fs           = require("fs");
+const yaml         = require("js-yaml");
+const swaggerUi    = require("swagger-ui-express");
 
 const app = express();
+
+// ── DOCS ──────────────────────────────────────────────────────────────────────
+// docs/openapi.yaml describe cada endpoint a mano (no autogenerado desde
+// JSDoc) — con ~30 rutas repartidas en 10 archivos, mantenerlo como un
+// archivo separado es más simple de revisar en un solo lugar que anotar
+// cada route una por una.
+const openapiDocument = yaml.load(fs.readFileSync(path.join(__dirname, "..", "docs", "openapi.yaml"), "utf8"));
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 // contentSecurityPolicy off: es una API JSON, no sirve HTML — el CSP que
