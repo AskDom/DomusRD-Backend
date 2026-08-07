@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 // ── USUARIOS ─────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ const getUsers = async (req, res) => {
 
     res.json({ users, total, page: Number(page), totalPages: Math.ceil(total / limit) });
   } catch (err) {
-    console.error('getUsers:', err);
+    logger.error('getUsers', err);
     res.status(500).json({ error: 'Error al obtener usuarios.' });
   }
 };
@@ -57,7 +58,7 @@ const updateUserRole = async (req, res) => {
     });
     res.json({ user });
   } catch (err) {
-    console.error('updateUserRole:', err);
+    logger.error('updateUserRole', err);
     res.status(500).json({ error: 'Error al actualizar rol.' });
   }
 };
@@ -71,7 +72,7 @@ const deleteUser = async (req, res) => {
     await prisma.user.delete({ where: { id: req.params.id } });
     res.json({ message: 'Usuario eliminado.' });
   } catch (err) {
-    console.error('deleteUser:', err);
+    logger.error('deleteUser', err);
     res.status(500).json({ error: 'Error al eliminar usuario.' });
   }
 };
@@ -106,7 +107,7 @@ const getAdminProperties = async (req, res) => {
 
     res.json({ properties, total, page: Number(page), totalPages: Math.ceil(total / limit) });
   } catch (err) {
-    console.error('getAdminProperties:', err);
+    logger.error('getAdminProperties', err);
     res.status(500).json({ error: 'Error al obtener propiedades.' });
   }
 };
@@ -122,7 +123,7 @@ const verifyProperty = async (req, res) => {
     });
     res.json({ property });
   } catch (err) {
-    console.error('verifyProperty:', err);
+    logger.error('verifyProperty', err);
     res.status(500).json({ error: 'Error al verificar propiedad.' });
   }
 };
@@ -133,7 +134,7 @@ const deleteAdminProperty = async (req, res) => {
     await prisma.property.delete({ where: { id: req.params.id } });
     res.json({ message: 'Propiedad eliminada.' });
   } catch (err) {
-    console.error('deleteAdminProperty:', err);
+    logger.error('deleteAdminProperty', err);
     res.status(500).json({ error: 'Error al eliminar propiedad.' });
   }
 };
@@ -164,7 +165,7 @@ const getStats = async (req, res) => {
       propertiesByType:  propertiesByType.map(t => ({ type: t.type, count: t._count.id })),
     });
   } catch (err) {
-    console.error('getStats:', err);
+    logger.error('getStats', err);
     res.status(500).json({ error: 'Error al obtener estadísticas.' });
   }
 };

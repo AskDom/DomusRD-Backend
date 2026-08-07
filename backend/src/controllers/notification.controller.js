@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 // GET /api/notifications — las notificaciones del usuario autenticado
 const getNotifications = async (req, res) => {
@@ -13,7 +14,7 @@ const getNotifications = async (req, res) => {
     });
     res.json({ notifications, unreadCount });
   } catch (err) {
-    console.error('getNotifications:', err);
+    logger.error('getNotifications', err);
     res.status(500).json({ error: 'Error al obtener notificaciones.' });
   }
 };
@@ -27,7 +28,7 @@ const markAsRead = async (req, res) => {
     });
     res.json({ message: 'Marcada como leída.' });
   } catch (err) {
-    console.error('markAsRead:', err);
+    logger.error('markAsRead', err);
     res.status(500).json({ error: 'Error al marcar como leída.' });
   }
 };
@@ -41,7 +42,7 @@ const markAllAsRead = async (req, res) => {
     });
     res.json({ message: 'Todas marcadas como leídas.' });
   } catch (err) {
-    console.error('markAllAsRead:', err);
+    logger.error('markAllAsRead', err);
     res.status(500).json({ error: 'Error al marcar todas como leídas.' });
   }
 };
@@ -63,7 +64,7 @@ const registerPushToken = async (req, res) => {
     });
     res.status(201).json({ message: 'Token registrado.' });
   } catch (err) {
-    console.error('registerPushToken:', err);
+    logger.error('registerPushToken', err);
     res.status(500).json({ error: 'Error al registrar el token.' });
   }
 };
@@ -74,7 +75,7 @@ const unregisterPushToken = async (req, res) => {
     await prisma.pushToken.deleteMany({ where: { userId: req.user.userId } });
     res.json({ message: 'Token(s) desregistrado(s).' });
   } catch (err) {
-    console.error('unregisterPushToken:', err);
+    logger.error('unregisterPushToken', err);
     res.status(500).json({ error: 'Error al desregistrar el token.' });
   }
 };

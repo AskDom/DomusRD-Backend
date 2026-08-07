@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const { isOwner } = require('../middlewares/auth.middleware');
 const { buildPropertyWhere } = require('../utils/propertyFilters');
 const { notifyMatchingSavedSearches } = require('../utils/savedSearchNotifier');
+const logger = require('../config/logger');
 const prisma = new PrismaClient();
 
 // La ubicación exacta es una de las razones para crear cuenta — sin sesión
@@ -53,14 +54,14 @@ const createProperty = async (req, res) => {
       }
     });
 
-    console.log('✅ Propiedad creada:', newProperty.id);
+    logger.info('Propiedad creada', { propertyId: newProperty.id });
     res.status(201).json({ message: 'Propiedad publicada con éxito', property: newProperty });
 
     // No bloquea la respuesta — la comparación contra búsquedas guardadas
     // corre en segundo plano después de responderle al que publicó.
     notifyMatchingSavedSearches(newProperty, req.app.get('io'));
   } catch (error) {
-    console.error('❌ Error en createProperty:', error);
+    logger.error('Error en createProperty', error);
     res.status(500).json({ error: 'Error en el servidor al crear la propiedad.' });
   }
 };
@@ -68,8 +69,8 @@ const createProperty = async (req, res) => {
 // 2. OBTENER TODAS LAS PROPIEDADES (Con filtro)
 const getProperties = async (req, res) => {
   try {
-    console.log("📋 getProperties llamado con query:", req.query);
     const { city, type, status, minPrice, maxPrice, rooms, search, page = 1, limit = 12 } = req.query;
+    logger.debug('getProperties', { query: req.query });
 
     const whereClause = buildPropertyWhere({ search, city, type, status, rooms, minPrice, maxPrice });
 
@@ -103,7 +104,7 @@ const getProperties = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('getProperties error:', error);
+    logger.error('getProperties', error);
     res.status(500).json({ error: 'Error al obtener las propiedades.' });
   }
 };
@@ -137,7 +138,7 @@ const getPropertyById = async (req, res) => {
 
     res.status(200).json(property);
   } catch (error) {
-    console.error(error);
+    logger.error('getPropertyById', error);
     res.status(500).json({ error: 'Error al obtener la propiedad.' });
   }
 };
@@ -152,7 +153,7 @@ const updateProperty = async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Propiedad no encontrada.' });
     if (!isOwner(existing.publishedById, req, res)) return;
 
-    console.log('📦 updateProperty body:', req.body);
+    logger.debug('updateProperty', { body: req.body });
 
     // Whitelist explícito — sin esto, cualquier campo del modelo (verified,
     // publishedById, etc.) viajaba tal cual desde el body al UPDATE de
@@ -187,7 +188,7 @@ const updateProperty = async (req, res) => {
     if (error.code === 'P2025' || error.message?.includes('not found')) {
       return res.status(404).json({ error: 'La propiedad que intentas actualizar no existe.' });
     }
-    console.error("Error en updateProperty:", error);
+    logger.error("Error en updateProperty", error);
     return res.status(500).json({ error: 'Error al actualizar la propiedad.' });
   }
 };
@@ -211,7 +212,7 @@ const deleteProperty = async (req, res) => {
     if (error.code === 'P2025' || error.message?.includes('not found')) {
       return res.status(404).json({ error: 'La propiedad que intentas eliminar no existe.' });
     }
-    console.error("Error en deleteProperty:", error);
+    logger.error("Error en deleteProperty", error);
     return res.status(500).json({ error: 'Error al eliminar la propiedad.' });
   }
 };

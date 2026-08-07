@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const { generateToken } = require("../utils/jwt");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
+const logger = require("../config/logger");
 
 const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
@@ -49,7 +50,7 @@ const register = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error(error);
+    logger.error("Error en register", error);
     res.status(500).json({ error: "Error al registrar usuario" });
   }
 };
@@ -83,7 +84,7 @@ const login = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error(error);
+    logger.error("Error en login", error);
     res.status(500).json({ error: "Error al iniciar sesión" });
   }
 };
@@ -91,14 +92,13 @@ const login = async (req, res) => {
 // 3. GET USUARIO ACTUAL (para mantener sesión al recargar)
 const me = async (req, res) => {
   try {
-    console.log('🔍 me() - req.user:', req.user);
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
     res.json({ user: sanitizeUser(user) });
   } catch (error) {
-    console.error(error);
+    logger.error("Error en me", error);
     res.status(500).json({ error: "Error al obtener usuario" });
   }
 };
@@ -117,7 +117,7 @@ const updateAvatar = async (req, res) => {
 
     res.json({ message: "Foto de perfil actualizada.", user: sanitizeUser(user) });
   } catch (error) {
-    console.error("❌ Error en updateAvatar:", error);
+    logger.error("Error en updateAvatar", error);
     res.status(500).json({ error: "Error al actualizar la foto de perfil." });
   }
 };
@@ -146,7 +146,7 @@ const forgotPassword = async (req, res) => {
 
     res.json({ message: "Si existe una cuenta con ese correo, te enviamos un enlace para recuperar tu contraseña." });
   } catch (error) {
-    console.error("❌ Error en forgotPassword:", error);
+    logger.error("Error en forgotPassword", error);
     res.status(500).json({ error: "Error al procesar la solicitud." });
   }
 };
@@ -175,7 +175,7 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: "Contraseña actualizada con éxito." });
   } catch (error) {
-    console.error("❌ Error en resetPassword:", error);
+    logger.error("Error en resetPassword", error);
     res.status(500).json({ error: "Error al restablecer la contraseña." });
   }
 };

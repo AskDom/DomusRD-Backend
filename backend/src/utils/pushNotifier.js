@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 // Notificación push vía Expo (sin API key, mismo servicio para iOS y
 // Android) — nunca debe tirar ni bloquear al que la llama: si un usuario no
@@ -22,7 +23,7 @@ async function sendPushToUser(userId, { title, body, data }) {
       body: JSON.stringify(messages),
     });
   } catch (err) {
-    console.error('❌ sendPushToUser:', err);
+    logger.error('sendPushToUser', err);
   }
 }
 

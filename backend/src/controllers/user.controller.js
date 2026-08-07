@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 // GET /api/users/:id — perfil público de un vendedor/agente:
 // datos básicos, ranking (promedio de reseñas de sus propiedades) y sus publicaciones
@@ -40,7 +41,7 @@ const getPublicProfile = async (req, res) => {
       properties,
     });
   } catch (err) {
-    console.error('getPublicProfile:', err);
+    logger.error('getPublicProfile', err);
     res.status(500).json({ error: 'Error al obtener el perfil.' });
   }
 };
