@@ -4,8 +4,17 @@ const cookieParser = require("cookie-parser");
 const helmet       = require("helmet");
 const path         = require("path");
 const rateLimit    = require("express-rate-limit");
+const pinoHttp     = require("pino-http");
+const logger       = require("./config/logger");
 
 const app = express();
+
+// ── LOGGING DE REQUESTS ──────────────────────────────────────────────────────
+// Un log por request (método, ruta, status, duración) — antes no había
+// ningún rastro de los flujos normales, solo lo que cada controller
+// logueaba a mano en sus catch. autoLogging igual respeta el level del
+// logger, así que en producción (level "info") esto sigue viéndose.
+app.use(pinoHttp({ logger: logger.raw }));
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 // contentSecurityPolicy off: es una API JSON, no sirve HTML — el CSP que
@@ -86,7 +95,7 @@ app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
 
 // ── ERROR HANDLER ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error("Error no manejado:", err);
+  logger.error("Error no manejado", err, { path: req.path, method: req.method });
   const isProd = process.env.NODE_ENV === "production";
   const message = (!isProd && err.message) || "Error interno del servidor";
   res.status(err.status || 500).json({ error: message });

@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { buildPropertyWhere } = require('./propertyFilters');
+const logger = require('../config/logger');
 
 // Se llama justo después de crear una propiedad nueva. Compara esa propiedad
 // contra los filtros de TODAS las búsquedas guardadas (reusando el mismo
@@ -42,7 +43,7 @@ async function notifyMatchingSavedSearches(property, io) {
     }
   } catch (err) {
     // Nunca debe romper la publicación de la propiedad por un fallo acá
-    console.error('❌ notifyMatchingSavedSearches:', err);
+    logger.error('notifyMatchingSavedSearches', err);
   }
 }
 

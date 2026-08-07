@@ -1,5 +1,6 @@
 const { cloudinary } = require('../config/cloudinary');
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 // POST /api/upload  — recibe hasta 6 imágenes y devuelve sus URLs
 const uploadImages = async (req, res) => {
@@ -12,7 +13,7 @@ const uploadImages = async (req, res) => {
     const urls = req.files.map((f) => f.path);
     return res.status(200).json({ urls });
   } catch (error) {
-    console.error('❌ Error en uploadImages:', error);
+    logger.error('Error en uploadImages', error);
     return res.status(500).json({ error: 'Error al subir las imágenes.' });
   }
 };
@@ -46,7 +47,7 @@ const deleteImage = async (req, res) => {
     await cloudinary.uploader.destroy(publicId);
     return res.status(200).json({ message: 'Imagen eliminada.' });
   } catch (error) {
-    console.error('❌ Error en deleteImage:', error);
+    logger.error('Error en deleteImage', error);
     return res.status(500).json({ error: 'Error al eliminar la imagen.' });
   }
 };

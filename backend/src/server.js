@@ -5,9 +5,10 @@ const { Server }  = require("socket.io");
 const jwt         = require("jsonwebtoken");
 const cookie       = require("cookie");
 const { COOKIE_NAME } = require("./utils/authCookie");
+const logger = require("./config/logger");
 
 if (!process.env.JWT_SECRET) {
-  console.error("❌ JWT_SECRET no está definida. Configúrala en .env antes de arrancar el servidor.");
+  logger.error("JWT_SECRET no está definida. Configúrala en .env antes de arrancar el servidor.");
   process.exit(1);
 }
 
@@ -60,7 +61,7 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  console.log(`🔌 Conectado: ${socket.userId}`);
+  logger.debug("Socket conectado", { userId: socket.userId });
   onlineUsers.set(socket.userId, socket.id);
 
   // Unirse a sala personal para recibir mensajes directos
@@ -68,7 +69,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     onlineUsers.delete(socket.userId);
-    console.log(`🔌 Desconectado: ${socket.userId}`);
+    logger.debug("Socket desconectado", { userId: socket.userId });
   });
 });
 
@@ -82,12 +83,12 @@ const PORT   = process.env.PORT || 5000;
 
 prisma.$connect()
   .then(() => {
-    console.log("✅ Conectado a PostgreSQL");
+    logger.info("Conectado a PostgreSQL");
     server.listen(PORT, () => {
-      console.log(`🚀 Servidor Domify corriendo en http://localhost:${PORT}`);
+      logger.info(`Servidor Domify corriendo en http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
-    console.error("❌ Error conectando a PostgreSQL:", err.message);
+    logger.error("Error conectando a PostgreSQL", err);
     process.exit(1);
   });

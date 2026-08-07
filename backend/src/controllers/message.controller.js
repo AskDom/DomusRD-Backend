@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { sendPushToUser } = require('../utils/pushNotifier');
+const logger = require('../config/logger');
 
 const USER_SELECT = { select: { id: true, name: true, avatar: true } };
 
@@ -18,7 +19,7 @@ const getMessages = async (req, res) => {
     });
     res.json({ messages });
   } catch (error) {
-    console.error('❌ getMessages:', error);
+    logger.error('getMessages', error);
     res.status(500).json({ error: 'Error al obtener mensajes.' });
   }
 };
@@ -85,7 +86,7 @@ const sendMessage = async (req, res) => {
 
     res.status(201).json({ message });
   } catch (error) {
-    console.error('❌ sendMessage:', error);
+    logger.error('sendMessage', error);
     res.status(500).json({ error: 'Error al enviar el mensaje.' });
   }
 };
@@ -99,7 +100,7 @@ const markAsRead = async (req, res) => {
     });
     res.json({ message: 'Marcado como leído.' });
   } catch (error) {
-    console.error('❌ markAsRead:', error);
+    logger.error('markAsRead', error);
     res.status(500).json({ error: 'Error al marcar como leído.' });
   }
 };
@@ -112,7 +113,7 @@ const deleteMessage = async (req, res) => {
     });
     res.json({ message: 'Mensaje eliminado.' });
   } catch (error) {
-    console.error('❌ deleteMessage:', error);
+    logger.error('deleteMessage', error);
     res.status(500).json({ error: 'Error al eliminar el mensaje.' });
   }
 };

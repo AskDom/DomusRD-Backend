@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 const ALLOWED_FILTER_KEYS = ['search', 'city', 'type', 'status', 'rooms', 'minPrice', 'maxPrice'];
 
@@ -19,7 +20,7 @@ const getSavedSearches = async (req, res) => {
     });
     res.json({ searches });
   } catch (err) {
-    console.error('getSavedSearches:', err);
+    logger.error('getSavedSearches', err);
     res.status(500).json({ error: 'Error al obtener las búsquedas guardadas.' });
   }
 };
@@ -41,7 +42,7 @@ const createSavedSearch = async (req, res) => {
     });
     res.status(201).json({ search });
   } catch (err) {
-    console.error('createSavedSearch:', err);
+    logger.error('createSavedSearch', err);
     res.status(500).json({ error: 'Error al guardar la búsqueda.' });
   }
 };
@@ -57,7 +58,7 @@ const deleteSavedSearch = async (req, res) => {
     }
     res.json({ message: 'Búsqueda eliminada.' });
   } catch (err) {
-    console.error('deleteSavedSearch:', err);
+    logger.error('deleteSavedSearch', err);
     res.status(500).json({ error: 'Error al eliminar la búsqueda.' });
   }
 };

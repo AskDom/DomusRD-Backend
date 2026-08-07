@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { COOKIE_NAME } = require('../utils/authCookie');
+const logger = require('../config/logger');
 
 // Métodos que cambian estado — les exigimos un header custom cuando la
 // autenticación viene de la cookie, para frenar CSRF. Un <form>/<img> de
@@ -40,7 +41,9 @@ const protect = async (req, res, next) => {
     req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
     return next();
   } catch (error) {
-    console.log('❌ JWT verify falló:', error.name, '-', error.message);
+    // debug, no error: pasa constantemente con tokens expirados o viejos
+    // tras un logout-all — no es un fallo del servidor, no va a Sentry.
+    logger.debug('JWT verify falló', { name: error.name, message: error.message });
     return res.status(401).json({ error: 'No autorizado, token inválido o expirado.' });
   }
 };

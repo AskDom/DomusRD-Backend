@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 // GET /api/favorites — obtiene todos los IDs favoritos del usuario autenticado
 const getFavorites = async (req, res) => {
@@ -10,7 +11,7 @@ const getFavorites = async (req, res) => {
     const ids = favorites.map((f) => f.propertyId);
     res.json({ favorites: ids });
   } catch (error) {
-    console.error('❌ getFavorites:', error);
+    logger.error('getFavorites', error);
     res.status(500).json({ error: 'Error al obtener favoritos.' });
   }
 };
@@ -28,7 +29,7 @@ const addFavorite = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(200).json({ message: 'Ya estaba en favoritos.' });
     }
-    console.error('❌ addFavorite:', error);
+    logger.error('addFavorite', error);
     res.status(500).json({ error: 'Error al agregar favorito.' });
   }
 };
@@ -42,7 +43,7 @@ const removeFavorite = async (req, res) => {
     });
     res.json({ message: 'Eliminado de favoritos.' });
   } catch (error) {
-    console.error('❌ removeFavorite:', error);
+    logger.error('removeFavorite', error);
     res.status(500).json({ error: 'Error al eliminar favorito.' });
   }
 };

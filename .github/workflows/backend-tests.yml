@@ -36,6 +36,7 @@ jobs:
       AUTH_RATE_LIMIT_MAX: 1000
       RESEND_API_KEY: ""
       SENTRY_DSN: ""
+      LOG_LEVEL: silent
 
     steps:
       - uses: actions/checkout@v4

@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const logger = require('../config/logger');
 
 const USER_SELECT = { select: { id: true, name: true, avatar: true } };
 
@@ -20,7 +21,7 @@ const getReviews = async (req, res) => {
 
     res.json({ reviews, average: Math.round(avg * 10) / 10, total: reviews.length });
   } catch (err) {
-    console.error('getReviews:', err);
+    logger.error('getReviews', err);
     res.status(500).json({ error: 'Error al obtener reseñas.' });
   }
 };
@@ -57,7 +58,7 @@ const upsertReview = async (req, res) => {
 
     res.status(200).json({ review });
   } catch (err) {
-    console.error('upsertReview:', err);
+    logger.error('upsertReview', err);
     res.status(500).json({ error: 'Error al guardar la reseña.' });
   }
 };
@@ -71,7 +72,7 @@ const deleteReview = async (req, res) => {
     await prisma.review.deleteMany({ where: { userId, propertyId } });
     res.json({ message: 'Reseña eliminada.' });
   } catch (err) {
-    console.error('deleteReview:', err);
+    logger.error('deleteReview', err);
     res.status(500).json({ error: 'Error al eliminar la reseña.' });
   }
 };
