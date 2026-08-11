@@ -12,8 +12,13 @@ const { register, login } = require("../../src/controllers/auth.controller");
 
 function mockRes() {
   const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json   = jest.fn().mockReturnValue(res);
+  res.status      = jest.fn().mockReturnValue(res);
+  res.json        = jest.fn().mockReturnValue(res);
+  // register()/login() también setean la cookie httpOnly con el JWT (ver
+  // authCookie.js) — sin mockear esto, res.cookie(...) explota con
+  // "res.cookie is not a function" y el controller lo atrapa como error 500.
+  res.cookie      = jest.fn().mockReturnValue(res);
+  res.clearCookie = jest.fn().mockReturnValue(res);
   return res;
 }
 

@@ -170,6 +170,8 @@ model Message {
 
   createdAt  DateTime @default(now())
 
+  @@index([fromId])
+  @@index([toId])
   @@map("messages")
 }
 

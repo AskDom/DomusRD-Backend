@@ -80,7 +80,10 @@ const requireRole = (...roles) => (req, res, next) => {
 // ── MIDDLEWARE 3: Verifica que el usuario sea dueño del recurso ───────────────
 // Uso: en el controller, después de buscar la propiedad
 const isOwner = (resourceUserId, req, res) => {
-  if (req.user.userId !== resourceUserId) {
+  // ADMIN pasa el chequeo de dueño para poder moderar publicaciones ajenas
+  // (editar/borrar). Sin este caso especial no había forma de moderar
+  // contenido de otro usuario aunque el rol existiera para eso.
+  if (req.user.role !== 'ADMIN' && req.user.userId !== resourceUserId) {
     res.status(403).json({ error: 'No tienes permiso para modificar esta propiedad.' });
     return false;
   }

@@ -133,6 +133,44 @@ describe("IDOR en PUT/DELETE /api/properties/:id", () => {
     const gone = await prisma.property.findUnique({ where: { id: property.id } });
     expect(gone).toBeNull();
   });
+
+  // register() no deja auto-asignarse ADMIN — promovemos por afuera y
+  // logueamos de nuevo para que el JWT nuevo lleve el rol actualizado
+  // (el rol de un JWT ya emitido no se relee en cada request).
+  async function registerAdmin(email) {
+    const cliente = await registerCliente(email);
+    await prisma.user.update({ where: { id: cliente.user.id }, data: { role: "ADMIN" } });
+    const loginRes = await request(app).post("/api/auth/login").send({ email, password: "clave123" });
+    return { token: loginRes.body.token, user: loginRes.body.user };
+  }
+
+  it("un ADMIN sí puede actualizar la propiedad de otro usuario (moderación)", async () => {
+    const owner = await registerVendedor("owner5@domify.test");
+    const admin = await registerAdmin("admin5@domify.test");
+    const property = await createProperty(owner.token);
+
+    const res = await request(app)
+      .put(`/api/properties/${property.id}`)
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({ price: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.property.price).toBe(1);
+  });
+
+  it("un ADMIN sí puede borrar la propiedad de otro usuario (moderación)", async () => {
+    const owner = await registerVendedor("owner6@domify.test");
+    const admin = await registerAdmin("admin6@domify.test");
+    const property = await createProperty(owner.token);
+
+    const res = await request(app)
+      .delete(`/api/properties/${property.id}`)
+      .set("Authorization", `Bearer ${admin.token}`);
+
+    expect(res.status).toBe(200);
+    const gone = await prisma.property.findUnique({ where: { id: property.id } });
+    expect(gone).toBeNull();
+  });
 });
 
 describe("GET /api/properties", () => {
