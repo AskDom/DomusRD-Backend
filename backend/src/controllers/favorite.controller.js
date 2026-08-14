@@ -19,6 +19,15 @@ const getFavorites = async (req, res) => {
 const addFavorite = async (req, res) => {
   try {
     const { propertyId } = req.params;
+
+    // Chequeo explícito de existencia — sin esto, un UUID inventado caía en
+    // un error de foreign key (500) en vez de un 404 limpio.
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true },
+    });
+    if (!property) return res.status(404).json({ error: 'Propiedad no encontrada.' });
+
     const favorite = await prisma.favorite.create({
       data: { userId: req.user.userId, propertyId },
     });

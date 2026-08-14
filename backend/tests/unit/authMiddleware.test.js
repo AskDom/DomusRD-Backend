@@ -1,4 +1,9 @@
-const jwt = require("jsonwebtoken");
+jest.mock("../../src/config/prisma", () => ({
+  user: { findUnique: jest.fn() },
+}));
+
+const jwt    = require("jsonwebtoken");
+const prisma = require("../../src/config/prisma");
 const { protect, requireRole, isOwner } = require("../../src/middlewares/auth.middleware");
 
 function mockRes() {
@@ -35,8 +40,9 @@ describe("auth.middleware protect()", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("deja pasar un token válido y llena req.user desde el payload", async () => {
-    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "VENDEDOR" }, process.env.JWT_SECRET);
+  it("deja pasar un token válido y llena req.user con el rol fresco de la base", async () => {
+    prisma.user.findUnique.mockResolvedValue({ role: "VENDEDOR", tokenVersion: 0 });
+    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "VENDEDOR", tv: 0 }, process.env.JWT_SECRET);
     const req   = { headers: { authorization: `Bearer ${token}` } };
     const res   = mockRes();
     const next  = jest.fn();
@@ -45,6 +51,31 @@ describe("auth.middleware protect()", () => {
 
     expect(next).toHaveBeenCalled();
     expect(req.user).toEqual({ userId: "user-1", email: "a@b.com", role: "VENDEDOR" });
+  });
+
+  it("rechaza un token con tokenVersion vieja (revocado por logout/cambio de rol/contraseña)", async () => {
+    prisma.user.findUnique.mockResolvedValue({ role: "VENDEDOR", tokenVersion: 1 });
+    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "VENDEDOR", tv: 0 }, process.env.JWT_SECRET);
+    const req   = { headers: { authorization: `Bearer ${token}` } };
+    const res   = mockRes();
+    const next  = jest.fn();
+
+    await protect(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("usa el rol actual de la base aunque el token tenga uno viejo", async () => {
+    prisma.user.findUnique.mockResolvedValue({ role: "ADMIN", tokenVersion: 0 });
+    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "VENDEDOR", tv: 0 }, process.env.JWT_SECRET);
+    const req   = { headers: { authorization: `Bearer ${token}` } };
+    const res   = mockRes();
+    const next  = jest.fn();
+
+    await protect(req, res, next);
+
+    expect(req.user.role).toBe("ADMIN");
   });
 });
 

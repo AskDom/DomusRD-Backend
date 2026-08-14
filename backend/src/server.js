@@ -4,6 +4,7 @@ const http        = require("http");
 const { Server }  = require("socket.io");
 const jwt         = require("jsonwebtoken");
 const cookie       = require("cookie");
+const prisma       = require("./config/prisma");
 const { COOKIE_NAME } = require("./utils/authCookie");
 
 if (!process.env.JWT_SECRET) {
@@ -22,10 +23,14 @@ const socketAllowedOrigins = [
   "http://localhost:3000",
 ];
 
+// Match exacto de "http://localhost:<puerto>" — nunca startsWith, que dejaría
+// pasar orígenes como "http://localhost.atacante.com".
+const isLocalhostOrigin = (origin) => /^http:\/\/localhost:\d+$/.test(origin);
+
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      if (!origin || origin.startsWith("http://localhost") || socketAllowedOrigins.includes(origin)) {
+      if (!origin || isLocalhostOrigin(origin) || socketAllowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       callback(new Error(`CORS bloqueado para: ${origin}`));
@@ -38,7 +43,7 @@ const io = new Server(server, {
 // Mapa userId → socketId para enviar mensajes directos
 const onlineUsers = new Map();
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   // La app móvil manda el token por handshake.auth (no maneja cookies).
   // El frontend web ya no tiene el token en JS — el navegador manda la
   // cookie httpOnly sola en el handshake HTTP inicial (necesita
@@ -51,10 +56,27 @@ io.use((socket, next) => {
   if (!token) return next(new Error("No autorizado"));
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
-    socket.userId = decoded.id || decoded.userId;
-    socket.role   = decoded.role;
+
+    // Misma validación que protect() en auth.middleware.js: el token trae su
+    // propio "tv" (tokenVersion) y lo comparamos contra el valor actual en la
+    // base. Sin esto, un JWT revocado (logout, cambio de contraseña, cambio de
+    // rol por un admin) seguía con el socket conectado hasta que expirara solo
+    // — hasta 7 días después — aunque la API HTTP ya lo rechazara.
+    const user = await prisma.user.findUnique({
+      where:  { id: decoded.id },
+      select: { role: true, tokenVersion: true },
+    });
+    if (!user || user.tokenVersion !== decoded.tv) {
+      return next(new Error("Sesión inválida"));
+    }
+
+    socket.userId = decoded.id;
+    socket.role   = user.role;
     next();
-  } catch {
+  } catch (error) {
+    // jwt.verify falló (token inválido/expirado) o la consulta a la base
+    // falló — en ambos casos cerramos por defecto: no aceptar un socket con
+    // un token que no pudimos verificar contra la base.
     next(new Error("Token inválido"));
   }
 });
@@ -77,8 +99,7 @@ app.set("io", io);
 app.set("onlineUsers", onlineUsers);
 
 // ── START ─────────────────────────────────────────────────────────────────────
-const prisma = require("./config/prisma");
-const PORT   = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 prisma.$connect()
   .then(() => {

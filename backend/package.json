@@ -6,8 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "build": "npx prisma migrate deploy",
+    "start": "prisma migrate deploy && node src/server.js",
+    "build": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -31,16 +31,18 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "multer-storage-cloudinary": "^4.0.0",
+    "prisma": "^5.22.0",
     "resend": "^6.18.0",
     "sanitize-html": "^2.16.0",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
     "dotenv-cli": "^11.0.0",
     "jest": "^30.4.2",
     "nodemon": "^3.1.4",
-    "prisma": "^5.20.0",
     "supertest": "^7.2.2"
   },
   "overrides": {
@@ -49,5 +51,10 @@
     "multer-storage-cloudinary": {
       "cloudinary": "$cloudinary"
     }
+  },
+  "allowScripts": {
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "prisma": true
   }
 }

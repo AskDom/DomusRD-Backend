@@ -11,9 +11,12 @@ if (!getFavorites || !addFavorite || !removeFavorite) {
   throw new Error('favorite.controller.js no exporta las funciones correctas');
 }
 
+const { validate } = require('../middlewares/validate.middleware');
+const { favoriteParamValidator } = require('../middlewares/validators');
+
 router.use(protect);
 router.get('/',               getFavorites);
-router.post('/:propertyId',   addFavorite);
-router.delete('/:propertyId', removeFavorite);
+router.post('/:propertyId',   favoriteParamValidator, validate, addFavorite);
+router.delete('/:propertyId', favoriteParamValidator, validate, removeFavorite);
 
 module.exports = router;

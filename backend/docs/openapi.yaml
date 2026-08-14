@@ -313,7 +313,7 @@ paths:
               properties:
                 name: { type: string, minLength: 2, maxLength: 60 }
                 email: { type: string, format: email }
-                password: { type: string, minLength: 8, description: "8 en las ramas con el fix de seguridad aplicado; 5 en main al momento de escribir esto." }
+                password: { type: string, minLength: 8, maxLength: 72 }
                 role:
                   type: string
                   enum: [CLIENTE, VENDEDOR, AGENTE]
@@ -424,6 +424,42 @@ paths:
                   user: { $ref: '#/components/schemas/User' }
         "401": { $ref: '#/components/responses/Unauthorized' }
 
+    patch:
+      tags: [Auth]
+      summary: Actualizar nombre, correo y/o contraseña del usuario actual
+      description: >
+        Todos los campos son opcionales. Para rotar la contraseña hay que
+        mandar currentPassword + newPassword; al hacerlo, los demás
+        dispositivos quedan revocados (tokenVersion++) y la respuesta trae un
+        token nuevo para mantener viva esta sesión.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 60 }
+                email: { type: string, format: email }
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        "200":
+          description: Perfil actualizado. Si se rotó la contraseña, incluye un token nuevo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+                  token:
+                    type: string
+                    description: Solo presente al cambiar la contraseña.
+        "400": { $ref: '#/components/responses/ValidationFailed' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "409": { description: "Ese correo ya está registrado." }
+
   /api/auth/logout:
     post:
       tags: [Auth]
@@ -470,8 +506,29 @@ paths:
         - { name: rooms, in: query, schema: { type: integer } }
         - { name: minPrice, in: query, schema: { type: number } }
         - { name: maxPrice, in: query, schema: { type: number } }
+        - name: bbox
+          in: query
+          description: >-
+            Viewport del mapa como "lat1,lng1,lat2,lng2" (las dos esquinas,
+            en cualquier orden). Filtra por lat/lng en vez de traer todo y
+            recortar en el cliente. Un bbox mal formado se ignora en
+            silencio en vez de devolver 400.
+          schema: { type: string, example: "18.40,-70.05,18.55,-69.85" }
         - { name: page, in: query, schema: { type: integer, default: 1 } }
         - { name: limit, in: query, schema: { type: integer, default: 12, maximum: 50 } }
+        - name: ids
+          in: query
+          description: >-
+            Lista de UUIDs separados por coma (ej. favoritos). Devuelve solo
+            esas propiedades; el tope por página sube a 200 para no cortar
+            la lista en pantallas sin paginación.
+          schema: { type: string, example: "<uuid>,<uuid>" }
+        - name: publishedBy
+          in: query
+          description: >-
+            Filtra por el usuario que publicó ("mis propiedades" del perfil).
+            Igual que ids, sube el tope por página a 200.
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: OK
@@ -673,6 +730,20 @@ paths:
     get:
       tags: [Messages]
       summary: Conversaciones del usuario autenticado
+      description: >
+        Paginación keyset sobre (createdAt, id): el cliente manda el id del
+        último mensaje recibido en ?cursor= para la página siguiente. Sin
+        cursor devuelve la primera página (hasta `limit` mensajes, default 200,
+        máximo 500).
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+          description: Cantidad de mensajes por página.
+        - name: cursor
+          in: query
+          schema: { type: string, format: uuid }
+          description: Id del último mensaje de la página anterior.
       responses:
         "200":
           description: OK
@@ -684,6 +755,12 @@ paths:
                   messages:
                     type: array
                     items: { $ref: '#/components/schemas/Message' }
+                  pagination:
+                    type: object
+                    properties:
+                      hasMore: { type: boolean }
+                      nextCursor: { type: string, nullable: true }
+                      total: { type: integer }
         "401": { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [Messages]
@@ -712,6 +789,38 @@ paths:
                 type: object
                 properties:
                   message: { $ref: '#/components/schemas/Message' }
+        "400": { $ref: '#/components/responses/ValidationFailed' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/messages/read-all:
+    patch:
+      tags: [Messages]
+      summary: Marcar toda una conversación como leída
+      description: >
+        Marca como leídos todos los mensajes de otherId → yo de una misma
+        propiedad, en una sola query (antes la app marcaba mensaje por
+        mensaje). Devuelve cuántos mensajes actualizó.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otherId, propertyId]
+              properties:
+                otherId: { type: string, format: uuid }
+                propertyId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  updated: { type: integer, description: "Mensajes marcados como leídos." }
         "400": { $ref: '#/components/responses/ValidationFailed' }
         "401": { $ref: '#/components/responses/Unauthorized' }
 

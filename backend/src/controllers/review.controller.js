@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { stripHtmlTags } = require('../utils/sanitizeText');
 
 const USER_SELECT = { select: { id: true, name: true, avatar: true } };
 
@@ -29,8 +30,9 @@ const getReviews = async (req, res) => {
 const upsertReview = async (req, res) => {
   try {
     const { propertyId } = req.params;
-    const { rating, comment } = req.body;
+    const { rating } = req.body;
     const userId = req.user.userId;
+    const comment = stripHtmlTags(req.body.comment);
 
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ error: 'La calificación debe ser entre 1 y 5.' });

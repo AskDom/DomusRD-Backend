@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { COOKIE_NAME } = require('../utils/authCookie');
+const prisma = require('../config/prisma');
 
 // Métodos que cambian estado — les exigimos un header custom cuando la
 // autenticación viene de la cookie, para frenar CSRF. Un <form>/<img> de
@@ -36,8 +37,25 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+
+    // El token trae su propio "tv" (tokenVersion) de cuando se emitió —
+    // comparado contra el valor actual en la base, esto es lo que permite
+    // revocar el token antes de que expire por su cuenta (logout, cambio de
+    // contraseña, cambio de rol por un admin — ver dónde se incrementa
+    // tokenVersion en auth.controller.js y admin.controller.js). De paso,
+    // usamos el rol FRESCO de la base en vez del que venía en el token, así
+    // que un cambio de rol aplica de inmediato y no recién cuando expire el
+    // JWT viejo.
+    const user = await prisma.user.findUnique({
+      where:  { id: decoded.id },
+      select: { role: true, tokenVersion: true },
+    });
+    if (!user || user.tokenVersion !== decoded.tv) {
+      return res.status(401).json({ error: 'Sesión inválida, iniciá sesión de nuevo.' });
+    }
+
     // decoded tiene: { userId, role }  ← el rol viene en MAYÚSCULAS (VENDEDOR, AGENTE, CLIENTE)
-    req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
+    req.user = { userId: decoded.id, email: decoded.email, role: user.role };
     return next();
   } catch (error) {
     console.log('❌ JWT verify falló:', error.name, '-', error.message);

@@ -2,7 +2,9 @@ const jwt = require("jsonwebtoken");
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    // "tv" (tokenVersion) es lo que permite revocar este token antes de que
+    // expire por su cuenta — ver protect() en auth.middleware.js.
+    { id: user.id, email: user.email, role: user.role, tv: user.tokenVersion },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d", algorithm: "HS256" }
   );

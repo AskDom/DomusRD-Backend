@@ -2,12 +2,17 @@
 // para reflejar los modelos usados en el frontend (localStorage -> Postgres)
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  // pg_trgm habilita los índices GIN de abajo — sin esto, ILIKE '%texto%'
+  // en title/city/sector siempre termina en Seq Scan sin importar cuántos
+  // índices btree tenga la tabla (ver prueba de carga del 2026-08-10).
+  extensions = [pg_trgm]
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 // ── ENUMS ────────────────────────────────────────────────────────────────
@@ -51,7 +56,14 @@ model User {
 
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  
+
+  // Se incrementa en logout, cambio de contraseña y cambio de rol por un
+  // admin — el JWT lleva este número al momento de emitirse (ver jwt.js) y
+  // "protect" lo compara contra el valor actual en cada request. Sin esto,
+  // un JWT robado seguía siendo válido hasta su expiración natural (hasta 7
+  // días) aunque el dueño cerrara sesión o un admin le cambiara el rol.
+  tokenVersion Int @default(0)
+
   properties      Property[]
   favorites       Favorite[]
   sentMessages    Message[]  @relation("MessagesSent")
@@ -60,8 +72,28 @@ model User {
   savedSearches   SavedSearch[]
   notifications   Notification[]
   pushTokens      PushToken[]
+  uploadedImages  UploadedImage[]
 
   @@map("users")
+}
+
+// Registra quién subió cada imagen a Cloudinary vía POST /api/upload — es
+// la fuente de verdad para poder borrarla (DELETE /api/upload). Antes de
+// esto, "puedo borrar esta imagen" se decidía viendo si la URL aparecía en
+// el array `images` de una propiedad propia, pero ese array lo puede editar
+// el propio usuario (PUT /api/properties/:id) con CUALQUIER URL de
+// Cloudinary — copiando la foto pública de otro usuario ahí, cualquiera
+// podía borrarle la imagen real. Con esta tabla, el permiso depende de
+// quién la subió originalmente, no de qué propiedad la referencia hoy.
+model UploadedImage {
+  id        String   @id @default(uuid())
+  url       String   @unique
+  publicId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@map("uploaded_images")
 }
 
 model PushToken {
@@ -134,6 +166,24 @@ model Property {
 
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
+  // btree — filtros exactos y el ORDER BY del listado (createdAt es el que
+  // más pega: hasta las cargas del mapa, sin ningún filtro, lo usan).
+  // Compuesto con id: es el mismo par (createdAt, id) que usa el WHERE del
+  // keyset de ?cursor= en getProperties — cubre tanto el ORDER BY simple
+  // como el desempate de filas con el mismo createdAt.
+  @@index([status])
+  @@index([type])
+  @@index([price])
+  @@index([createdAt, id])
+  // Para ?bbox=... (GET /api/properties) — filtrar por el viewport del
+  // mapa en vez de traer todo y recortar en el cliente.
+  @@index([lat, lng])
+  // GIN + pg_trgm — para que `contains ... insensitive` (ILIKE '%texto%')
+  // en /api/properties?search= dejen de escanear la tabla completa.
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "properties_title_trgm_idx")
+  @@index([city(ops: raw("gin_trgm_ops"))], type: Gin, map: "properties_city_trgm_idx")
+  @@index([sector(ops: raw("gin_trgm_ops"))], type: Gin, map: "properties_sector_trgm_idx")
 
   @@map("properties")
 }

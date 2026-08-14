@@ -10,6 +10,11 @@ const swaggerUi    = require("swagger-ui-express");
 
 const app = express();
 
+// Render pone un único proxy inverso delante de la app. Sin esto, el rate
+// limiter de abajo agrupa a todos los usuarios bajo la IP del proxy en vez
+// de la IP real del cliente (bloqueando login para todo el mundo a la vez).
+app.set("trust proxy", 1);
+
 // ── DOCS ──────────────────────────────────────────────────────────────────────
 // docs/openapi.yaml describe cada endpoint a mano (no autogenerado desde
 // JSDoc) — con ~30 rutas repartidas en 10 archivos, mantenerlo como un
@@ -31,10 +36,14 @@ const allowedOrigins = [
   "http://localhost:3000",
 ];
 
+// Match exacto de "http://localhost:<puerto>" — nunca startsWith, que dejaría
+// pasar orígenes como "http://localhost.atacante.com".
+const isLocalhostOrigin = (origin) => /^http:\/\/localhost:\d+$/.test(origin);
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (origin.startsWith("http://localhost")) return callback(null, true);
+    if (isLocalhostOrigin(origin)) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS bloqueado para: ${origin}`));
   },

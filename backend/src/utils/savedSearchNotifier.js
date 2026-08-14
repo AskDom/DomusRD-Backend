@@ -8,18 +8,25 @@ const { buildPropertyWhere } = require('./propertyFilters');
 // el socket del usuario dueño de esa búsqueda (mismo patrón que los mensajes).
 async function notifyMatchingSavedSearches(property, io) {
   try {
-    const searches = await prisma.savedSearch.findMany();
+    // No tiene sentido notificarle a alguien su propia publicación — filtrar
+    // esto en la misma query evita traer y descartar filas de más.
+    const searches = await prisma.savedSearch.findMany({
+      where: { userId: { not: property.publishedById } },
+    });
     if (!searches.length) return;
 
-    const matches = [];
-    for (const search of searches) {
-      // No tiene sentido notificarle a alguien su propia publicación
-      if (search.userId === property.publishedById) continue;
-
-      const where = buildPropertyWhere(search.filters || {});
-      const count = await prisma.property.count({ where: { ...where, id: property.id } });
-      if (count > 0) matches.push(search);
-    }
+    // Una consulta por búsqueda es inevitable (cada una tiene sus propios
+    // filtros), pero no hay razón para hacerlas en serie — el límite de
+    // MAX_SAVED_SEARCHES_PER_USER búsquedas por usuario (ver
+    // savedSearch.controller.js) mantiene esto acotado.
+    const results = await Promise.all(
+      searches.map(async (search) => {
+        const where = buildPropertyWhere(search.filters || {});
+        const count = await prisma.property.count({ where: { ...where, id: property.id } });
+        return count > 0 ? search : null;
+      })
+    );
+    const matches = results.filter(Boolean);
 
     if (!matches.length) return;
 

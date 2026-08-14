@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { roundToZone } = require('../utils/geo');
 
 // GET /api/users/:id — perfil público de un vendedor/agente:
 // datos básicos, ranking (promedio de reseñas de sus propiedades) y sus publicaciones
@@ -30,6 +31,13 @@ const getPublicProfile = async (req, res) => {
       }),
     ]);
 
+    // Mismo criterio que GET /api/properties: sin sesión, coordenadas
+    // aproximadas — antes esta ruta no tenía ningún gate y devolvía lat/lng
+    // exactos de todas las propiedades del usuario sin necesitar login.
+    const responseProperties = req.user
+      ? properties
+      : properties.map((p) => ({ ...p, lat: roundToZone(p.lat), lng: roundToZone(p.lng) }));
+
     res.json({
       user,
       stats: {
@@ -37,7 +45,7 @@ const getPublicProfile = async (req, res) => {
         avgRating:       ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
         reviewsCount:     ratingAgg._count.rating,
       },
-      properties,
+      properties: responseProperties,
     });
   } catch (err) {
     console.error('getPublicProfile:', err);

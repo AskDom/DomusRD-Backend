@@ -95,3 +95,103 @@ describe("GET /api/auth/me", () => {
     expect(res.body.user.email).toBe("me@domify.test");
   });
 });
+
+describe("PATCH /api/auth/me", () => {
+  let token;
+  let userId;
+
+  beforeEach(async () => {
+    const registerRes = await request(app).post("/api/auth/register").send({
+      name: "Perfil Original", email: "perfil@domify.test", password: "clave123",
+    });
+    token  = registerRes.body.token;
+    userId = registerRes.body.user.id;
+  });
+
+  it("actualiza nombre y correo sin rotar la sesión", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Perfil Nuevo", email: "perfil-nuevo@domify.test" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.name).toBe("Perfil Nuevo");
+    expect(res.body.user.email).toBe("perfil-nuevo@domify.test");
+    expect(res.body.token).toBeUndefined();
+    expect(res.body.user.password).toBeUndefined();
+  });
+
+  it("no devuelve nada sin autenticación", async () => {
+    const res = await request(app).patch("/api/auth/me").send({ name: "X" });
+    expect(res.status).toBe(401);
+  });
+
+  it("rechaza correo que ya pertenece a otro usuario (409)", async () => {
+    await request(app).post("/api/auth/register").send({
+      name: "Dueño", email: "dueno@domify.test", password: "clave123",
+    });
+
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ email: "dueno@domify.test" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("cambiar contraseña exige currentPassword (400)", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ newPassword: "nuevacontraseña" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rechaza currentPassword incorrecto (401)", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "incorrecta", newPassword: "nuevacontraseña" });
+
+    expect(res.status).toBe(401);
+  });
+
+  it("rota la contraseña, emite token nuevo y revoca el anterior", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "clave123", newPassword: "clave123456" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toEqual(expect.any(String));
+    expect(res.body.token).not.toBe(token);
+
+    // El token viejo ya no sirve (tokenVersion++ revocó todos los anteriores).
+    const oldTokenRes = await request(app)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${token}`);
+    expect(oldTokenRes.status).toBe(401);
+
+    // El token nuevo sigue funcionando en esta sesión.
+    const newTokenRes = await request(app)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${res.body.token}`);
+    expect(newTokenRes.status).toBe(200);
+
+    // Y el login con la contraseña nueva también.
+    const loginRes = await request(app).post("/api/auth/login").send({
+      email: "perfil@domify.test", password: "clave123456",
+    });
+    expect(loginRes.status).toBe(200);
+  });
+
+  it("valida que la nueva contraseña tenga mínimo 8 caracteres (400)", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "clave123", newPassword: "corta" });
+
+    expect(res.status).toBe(400);
+  });
+});

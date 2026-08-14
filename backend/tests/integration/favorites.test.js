@@ -70,6 +70,26 @@ describe("POST /api/favorites/:propertyId", () => {
     });
     expect(all).toHaveLength(1);
   });
+
+  it("devuelve 404 si la propiedad no existe (no un 500 por foreign key)", async () => {
+    const buyer = await registerCliente("buyer404@domify.test");
+
+    const res = await request(app)
+      .post("/api/favorites/00000000-0000-0000-0000-000000000000")
+      .set("Authorization", `Bearer ${buyer.token}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("rechaza un propertyId que no sea UUID (400)", async () => {
+    const buyer = await registerCliente("buyer400@domify.test");
+
+    const res = await request(app)
+      .post("/api/favorites/no-soy-uuid")
+      .set("Authorization", `Bearer ${buyer.token}`);
+
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("Aislamiento de favoritos entre usuarios", () => {

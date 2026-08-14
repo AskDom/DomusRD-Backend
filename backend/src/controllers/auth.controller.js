@@ -1,9 +1,10 @@
 const prisma = require("../config/prisma");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const jwt    = require("jsonwebtoken");
 const { generateToken } = require("../utils/jwt");
 const { sendPasswordResetEmail } = require("../utils/mailer");
-const { setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
+const { COOKIE_NAME, setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
 
 const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
@@ -91,7 +92,6 @@ const login = async (req, res) => {
 // 3. GET USUARIO ACTUAL (para mantener sesión al recargar)
 const me = async (req, res) => {
   try {
-    console.log('🔍 me() - req.user:', req.user);
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado" });
@@ -100,6 +100,65 @@ const me = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error al obtener usuario" });
+  }
+};
+
+// 4. ACTUALIZAR PERFIL (nombre, correo y/o contraseña)
+const updateMe = async (req, res) => {
+  try {
+    const { name, email, currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    if (name === undefined && email === undefined && newPassword === undefined) {
+      return res.status(400).json({ error: "No hay nada que actualizar." });
+    }
+
+    if ((newPassword && !currentPassword) || (!newPassword && currentPassword)) {
+      return res.status(400).json({
+        error: "Para cambiar la contraseña envía tanto currentPassword como newPassword."
+      });
+    }
+
+    const data = {};
+    if (name !== undefined) data.name = name.trim();
+    if (email !== undefined) data.email = email;
+
+    if (newPassword) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        return res.status(404).json({ error: "Usuario no encontrado." });
+      }
+      const isCurrentValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentValid) {
+        return res.status(401).json({ error: "La contraseña actual no es correcta." });
+      }
+      data.password = await bcrypt.hash(newPassword, 10);
+      // Revoca todos los JWTs anteriores (tokenVersion++): los demás
+      // dispositivos quedan fuera; esta sesión se re-emite abajo con un JWT
+      // nuevo del versión actualizada.
+      data.tokenVersion = { increment: 1 };
+    }
+
+    const updatedUser = await prisma.user.update({ where: { id: userId }, data });
+
+    let token;
+    if (newPassword) {
+      token = generateToken(updatedUser);
+      setAuthCookie(res, token);
+    }
+
+    res.json({
+      message: "Perfil actualizado.",
+      user: sanitizeUser(updatedUser),
+      // Solo cambia el token cuando se rotó la contraseña.
+      ...(token ? { token } : {}),
+    });
+  } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: "Ese correo ya está registrado." });
+    }
+    console.error("❌ Error en updateMe:", error);
+    res.status(500).json({ error: "Error al actualizar el perfil." });
   }
 };
 
@@ -170,7 +229,9 @@ const resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
       where: { id: user.id },
-      data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
+      // tokenVersion++ para que cualquier JWT emitido con la contraseña
+      // vieja (por ejemplo uno robado) deje de servir de inmediato.
+      data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null, tokenVersion: { increment: 1 } },
     });
 
     res.json({ message: "Contraseña actualizada con éxito." });
@@ -180,11 +241,38 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// 7. LOGOUT — limpia la cookie httpOnly del lado del servidor. La app móvil
-// no la usa (solo borra el token de SecureStore en el cliente).
-const logout = (req, res) => {
+// 7. LOGOUT — limpia la cookie httpOnly del lado del servidor y revoca el
+// JWT (tokenVersion++) para que no siga siendo válido si alguien lo llegó a
+// copiar antes del logout. La app móvil no usa la cookie (solo borra el
+// token de SecureStore en el cliente), pero igual manda el Bearer token acá
+// para que también quede revocado del lado del servidor.
+const logout = async (req, res) => {
+  try {
+    const header = req.headers.authorization;
+    const token = (header && header.startsWith("Bearer"))
+      ? header.split(" ")[1]
+      : req.cookies?.[COOKIE_NAME];
+
+    if (token) {
+      // ignoreExpiration: un token ya vencido no necesita revocación (ya no
+      // sirve), pero uno todavía válido sí — y en cualquiera de los dos
+      // casos queremos la firma verificada, no un jwt.decode() a ciegas que
+      // dejaría que cualquiera fuerce el logout de otra cuenta mandando un
+      // token con el "id" de otro usuario.
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+        algorithms: ["HS256"], ignoreExpiration: true,
+      });
+      await prisma.user.update({
+        where: { id: decoded.id },
+        data:  { tokenVersion: { increment: 1 } },
+      });
+    }
+  } catch {
+    // Sin token, token inválido, o usuario ya borrado — no hay nada que
+    // revocar; igual respondemos 200 y limpiamos la cookie más abajo.
+  }
   clearAuthCookie(res);
   res.json({ message: "Sesión cerrada." });
 };
 
-module.exports = { register, login, me, updateAvatar, forgotPassword, resetPassword, logout };
+module.exports = { register, login, me, updateMe, updateAvatar, forgotPassword, resetPassword, logout };

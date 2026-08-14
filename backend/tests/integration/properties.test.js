@@ -54,6 +54,40 @@ describe("POST /api/properties", () => {
     expect(res.status).toBe(403);
   });
 
+  it("rechaza al VENDEDOR que ya publicó 3 propiedades (403), llame directo al endpoint o no", async () => {
+    const { token } = await registerVendedor("limite@domify.test");
+
+    for (let i = 0; i < 3; i++) {
+      const res = await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${token}`)
+        .send(samplePropertyPayload({ title: `Propiedad ${i}` }));
+      expect(res.status).toBe(201);
+    }
+
+    const res = await request(app)
+      .post("/api/properties")
+      .set("Authorization", `Bearer ${token}`)
+      .send(samplePropertyPayload({ title: "Cuarta propiedad" }));
+
+    expect(res.status).toBe(403);
+  });
+
+  it("no deja pasar más de 3 aunque lleguen en paralelo (TOCTOU)", async () => {
+    const { token } = await registerVendedor("concurrencia@domify.test");
+
+    const requests = Array.from({ length: 6 }, (_, i) =>
+      request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${token}`)
+        .send(samplePropertyPayload({ title: `Concurrente ${i}` }))
+    );
+    const results = await Promise.all(requests);
+    const created = results.filter((r) => r.status === 201).length;
+
+    expect(created).toBeLessThanOrEqual(3);
+  });
+
   it("crea la propiedad a nombre del usuario autenticado, aunque el body traiga otro userId", async () => {
     const { token, user } = await registerVendedor("vendedor@domify.test");
     const other = await registerVendedor("otro-vendedor@domify.test");
@@ -186,6 +220,100 @@ describe("GET /api/properties", () => {
     expect(res.status).toBe(200);
     expect(res.body.properties.length).toBe(1);
     expect(res.body.pagination.total).toBe(1);
+  });
+
+  describe("filtro ?ids=", () => {
+    it("devuelve solo las propiedades cuyos IDs se piden, sin paginar", async () => {
+      const owner = await registerVendedor("ids-owner@domify.test");
+      const a = await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send(samplePropertyPayload({ title: "Propiedad A ids" }));
+      await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send(samplePropertyPayload({ title: "Propiedad B ids" }));
+      const c = await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send(samplePropertyPayload({ title: "Propiedad C ids" }));
+
+      const res = await request(app)
+        .get("/api/properties")
+        .query({ ids: [a.body.property.id, c.body.property.id].join(",") });
+
+      expect(res.status).toBe(200);
+      expect(res.body.properties.map((p) => p.title).sort()).toEqual([
+        "Propiedad A ids",
+        "Propiedad C ids",
+      ]);
+    });
+
+    it("rechaza ids que no sean UUIDs válidos (400)", async () => {
+      const res = await request(app).get("/api/properties").query({ ids: "no-soy-uuid,123" });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("filtro ?publishedBy=", () => {
+    it("solo devuelve las propiedades de ese usuario", async () => {
+      const owner   = await registerVendedor("pb-owner@domify.test");
+      const other   = await registerVendedor("pb-other@domify.test");
+      await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send(samplePropertyPayload({ title: "De owner" }));
+      await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${other.token}`)
+        .send(samplePropertyPayload({ title: "De other" }));
+
+      const res = await request(app)
+        .get("/api/properties")
+        .query({ publishedBy: owner.user.id });
+
+      expect(res.status).toBe(200);
+      expect(res.body.properties).toHaveLength(1);
+      expect(res.body.properties[0].title).toBe("De owner");
+      expect(res.body.pagination.total).toBe(1);
+    });
+
+    it("rechaza publishedBy que no sea UUID (400)", async () => {
+      const res = await request(app).get("/api/properties").query({ publishedBy: "no-soy-uuid" });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("filtro ?bbox=", () => {
+    it("solo devuelve propiedades dentro del viewport", async () => {
+      const owner = await registerVendedor("bbox-owner@domify.test");
+      await request(app) // dentro del bbox (Piantini, Santo Domingo)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send(samplePropertyPayload({ title: "Dentro del bbox: Piantini" }));
+      await request(app) // fuera del bbox (Punta Cana)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send(samplePropertyPayload({ title: "Fuera del bbox: Punta Cana", lat: 18.6825, lng: -68.4056 }));
+
+      const res = await request(app).get("/api/properties").query({ bbox: "18.40,-70.05,18.55,-69.85" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.properties.map((p) => p.title)).toEqual(["Dentro del bbox: Piantini"]);
+    });
+
+    it("ignora un bbox mal formado en vez de devolver error", async () => {
+      const owner = await registerVendedor("bbox-malformed@domify.test");
+      await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send(samplePropertyPayload());
+
+      const res = await request(app).get("/api/properties").query({ bbox: "no-soy-un-bbox" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.pagination.total).toBe(1);
+    });
   });
 });
 

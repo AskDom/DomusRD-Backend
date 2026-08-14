@@ -1,22 +1,27 @@
 const { PrismaClient } = require('@prisma/client');
 const { isOwner } = require('../middlewares/auth.middleware');
-const { buildPropertyWhere } = require('../utils/propertyFilters');
+const { buildPropertyWhere, parseBbox } = require('../utils/propertyFilters');
 const { notifyMatchingSavedSearches } = require('../utils/savedSearchNotifier');
-const prisma = new PrismaClient();
-
-// La ubicación exacta es una de las razones para crear cuenta — sin sesión
-// solo devolvemos una zona aproximada (grilla de ~1km), nunca el punto real.
+const { stripHtmlTags } = require('../utils/sanitizeText');
 // Esto respalda en el backend lo que el frontend ya oculta visualmente: sin
 // esto, cualquiera podría ver la petición de red y sacar lat/lng exactos.
-const roundToZone = (n) => Math.round(n * 100) / 100;
+const { roundToZone } = require('../utils/geo');
+const prisma = new PrismaClient();
+
+// Mismo límite que el frontend (Publish.jsx) para el plan Vendedor. Se
+// repite aquí porque el frontend solo deshabilita el botón — sin este
+// chequeo, cualquiera podía publicar sin límite llamando al endpoint
+// directamente.
+const VENDEDOR_PROPERTY_LIMIT = 3;
 
 // 1. CREAR UNA PROPIEDAD
 const createProperty = async (req, res) => {
   try {
     const {
-      title, description, price, currency, city, sector,
+      description, price, currency, city, sector,
       lat, lng, rooms, baths, parking, type, status, images
     } = req.body;
+    const title = stripHtmlTags(req.body.title);
 
     // El dueño de la propiedad es siempre el usuario autenticado (del token),
     // nunca un valor que venga del body — evita que alguien publique a nombre de otro.
@@ -28,10 +33,10 @@ const createProperty = async (req, res) => {
       });
     }
 
-    const newProperty = await prisma.property.create({
+    const propertyData = {
       data: {
         title,
-        description: description || '',
+        description: stripHtmlTags(description) || '',
         price: parseFloat(price),
         currency: currency || 'USD',
         city,
@@ -51,7 +56,29 @@ const createProperty = async (req, res) => {
       include: {
         publishedBy: { select: { id: true, name: true, email: true, avatar: true } }
       }
-    });
+    };
+
+    let newProperty;
+    if (req.user.role === 'VENDEDOR') {
+      // count() + create() en una transacción con advisory lock por usuario
+      // (mismo patrón que createSavedSearch): sin esto, dos publicaciones en
+      // paralelo del mismo Vendedor podían leer el mismo count por debajo
+      // del límite y crear las dos, saltándose el tope (TOCTOU).
+      newProperty = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+
+        const publishedCount = await tx.property.count({ where: { publishedById: userId } });
+        if (publishedCount >= VENDEDOR_PROPERTY_LIMIT) {
+          const limitError = new Error('LIMIT_REACHED');
+          limitError.code = 'LIMIT_REACHED';
+          throw limitError;
+        }
+
+        return tx.property.create(propertyData);
+      });
+    } else {
+      newProperty = await prisma.property.create(propertyData);
+    }
 
     console.log('✅ Propiedad creada:', newProperty.id);
     res.status(201).json({ message: 'Propiedad publicada con éxito', property: newProperty });
@@ -60,6 +87,11 @@ const createProperty = async (req, res) => {
     // corre en segundo plano después de responderle al que publicó.
     notifyMatchingSavedSearches(newProperty, req.app.get('io'));
   } catch (error) {
+    if (error.code === 'LIMIT_REACHED') {
+      return res.status(403).json({
+        error: `Alcanzaste el límite de ${VENDEDOR_PROPERTY_LIMIT} propiedades publicadas para tu plan.`
+      });
+    }
     console.error('❌ Error en createProperty:', error);
     res.status(500).json({ error: 'Error en el servidor al crear la propiedad.' });
   }
@@ -68,20 +100,40 @@ const createProperty = async (req, res) => {
 // 2. OBTENER TODAS LAS PROPIEDADES (Con filtro)
 const getProperties = async (req, res) => {
   try {
-    console.log("📋 getProperties llamado con query:", req.query);
-    const { city, type, status, minPrice, maxPrice, rooms, search, page = 1, limit = 12 } = req.query;
+    const { city, type, status, minPrice, maxPrice, rooms, search, bbox, page = 1, limit = 12, publishedBy, ids } = req.query;
 
-    const whereClause = buildPropertyWhere({ search, city, type, status, rooms, minPrice, maxPrice });
+    // ?bbox=lat1,lng1,lat2,lng2 — las dos esquinas del viewport del mapa.
+    // Pensado para un futuro "buscar en esta área": el mapa manda sus
+    // límites en vez de depender solo del limit=50 fijo de hoy.
+    const idsArray = ids ? String(ids).split(',').filter(Boolean) : undefined;
+    const whereClause = buildPropertyWhere({ search, city, type, status, rooms, minPrice, maxPrice, bbox: parseBbox(bbox), ids: idsArray, publishedBy });
 
     const pageNum  = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+    // ?ids= y ?publishedBy= son consultas del propio usuario (favoritos, "mis
+    // propiedades"): el tope público de 50 les cortaba la lista a la mitad.
+    // 200 sigue siendo un tope razonable, no hay lista infinita que paginar
+    // en esas pantallas.
+    const maxTake  = (idsArray || publishedBy) ? 200 : 50;
+    const limitNum = Math.min(maxTake, Math.max(1, parseInt(limit)));
     const skip     = (pageNum - 1) * limitNum;
 
-    const [properties, total] = await prisma.$transaction([
+    // Promise.all en vez de prisma.$transaction([...]): dentro de una
+    // transacción, Postgres corre las dos queries en serie sobre la misma
+    // conexión (una transacción es una sola sesión). Acá no necesitamos que
+    // "total" y "properties" vengan de la misma foto exacta de la tabla —es
+    // un listado, no una operación financiera— así que las mandamos en
+    // paralelo por dos conexiones del pool y cortamos la latencia a la mitad.
+    const [properties, total] = await Promise.all([
       prisma.property.findMany({
         where: whereClause,
         include: { publishedBy: { select: { id: true, name: true, email: true, avatar: true } } },
-        orderBy: { createdAt: 'desc' },
+        // Desempatado por id: con createdAt solo, dos filas con el mismo
+        // timestamp (algo real con datos sembrados en lote) pueden quedar en
+        // cualquier orden entre una página y la siguiente — a veces
+        // repetidas, a veces salteadas. (createdAt, id) es un orden
+        // determinístico, cubierto de punta a punta por el índice
+        // @@index([createdAt, id]).
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take: limitNum,
       }),
@@ -152,8 +204,6 @@ const updateProperty = async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Propiedad no encontrada.' });
     if (!isOwner(existing.publishedById, req, res)) return;
 
-    console.log('📦 updateProperty body:', req.body);
-
     // Whitelist explícito — sin esto, cualquier campo del modelo (verified,
     // publishedById, etc.) viajaba tal cual desde el body al UPDATE de
     // Prisma. El dueño de una propiedad podía auto-verificarla mandando
@@ -167,6 +217,9 @@ const updateProperty = async (req, res) => {
     for (const field of EDITABLE_FIELDS) {
       if (req.body[field] !== undefined) dataToUpdate[field] = req.body[field];
     }
+
+    if (dataToUpdate.title !== undefined)       dataToUpdate.title       = stripHtmlTags(dataToUpdate.title);
+    if (dataToUpdate.description !== undefined) dataToUpdate.description = stripHtmlTags(dataToUpdate.description);
 
     // Convertimos datos numéricos si es que vienen en la actualización
     if (dataToUpdate.price !== undefined) dataToUpdate.price = parseFloat(dataToUpdate.price);

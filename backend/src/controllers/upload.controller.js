@@ -1,5 +1,6 @@
 const { cloudinary } = require('../config/cloudinary');
 const prisma = require('../config/prisma');
+const { publicIdFromUrl } = require('../utils/cloudinaryPublicId');
 
 // POST /api/upload  — recibe hasta 6 imágenes y devuelve sus URLs
 const uploadImages = async (req, res) => {
@@ -8,8 +9,17 @@ const uploadImages = async (req, res) => {
       return res.status(400).json({ error: 'No se recibieron imágenes.' });
     }
 
-    // multer-storage-cloudinary ya subió los archivos; solo extraemos las URLs
+    // multer-storage-cloudinary ya subió los archivos; solo extraemos las URLs.
+    // Registramos quién subió cada una — es lo único que después decide si
+    // puede borrarla (ver deleteImage), no si la URL "aparece" en alguna
+    // propiedad suya.
+    const userId = req.user.userId;
     const urls = req.files.map((f) => f.path);
+    await prisma.uploadedImage.createMany({
+      data: urls.map((url) => ({ url, publicId: publicIdFromUrl(url), userId })),
+      skipDuplicates: true,
+    });
+
     return res.status(200).json({ urls });
   } catch (error) {
     console.error('❌ Error en uploadImages:', error);
@@ -23,27 +33,29 @@ const deleteImage = async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'Se requiere la URL de la imagen.' });
 
-    // Solo se puede borrar una imagen que esté en una propiedad propia o que
-    // sea el propio avatar — sin esto, cualquiera con rol Vendedor/Agente
-    // podía borrar la foto de CUALQUIER propiedad o avatar copiando la URL
-    // pública del listado.
+    // El permiso depende de quién la subió (tabla uploadedImage, llenada en
+    // uploadImages) o de que sea el propio avatar del usuario — nunca de si
+    // la URL "aparece" en el array `images` de una propiedad, porque ese
+    // array lo puede editar el propio dueño con cualquier URL de Cloudinary
+    // (incluida la de la foto de OTRO usuario, copiada de un listado
+    // público). Si no hay registro de quién la subió (imagen previa a este
+    // control) y tampoco es el avatar propio, se deniega — sin excepciones
+    // que reabran el mismo agujero.
     const userId = req.user.userId;
-    const [ownProperty, user] = await Promise.all([
-      prisma.property.findFirst({ where: { publishedById: userId, images: { has: url } } }),
+    const [uploadedImage, user] = await Promise.all([
+      prisma.uploadedImage.findUnique({ where: { url } }),
       prisma.user.findUnique({ where: { id: userId }, select: { avatar: true } }),
     ]);
-    if (!ownProperty && user?.avatar !== url) {
+    const ownsUpload = uploadedImage?.userId === userId;
+    const isOwnAvatar = user?.avatar === url;
+    if (!ownsUpload && !isOwnAvatar) {
       return res.status(403).json({ error: 'No tienes permiso para eliminar esta imagen.' });
     }
 
-    // Extraemos el public_id de la URL de Cloudinary
-    // Ejemplo URL: https://res.cloudinary.com/demo/image/upload/v123/domify/properties/abc123.jpg
-    const parts  = url.split('/');
-    const file   = parts[parts.length - 1].split('.')[0]; // "abc123"
-    const folder = parts[parts.length - 2];               // "properties"
-    const publicId = `domify/${folder}/${file}`;
-
-    await cloudinary.uploader.destroy(publicId);
+    await cloudinary.uploader.destroy(publicIdFromUrl(url));
+    if (uploadedImage) {
+      await prisma.uploadedImage.delete({ where: { url } });
+    }
     return res.status(200).json({ message: 'Imagen eliminada.' });
   } catch (error) {
     console.error('❌ Error en deleteImage:', error);

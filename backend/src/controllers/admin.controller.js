@@ -52,7 +52,10 @@ const updateUserRole = async (req, res) => {
     }
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { role },
+      // tokenVersion++ para que el rol nuevo aplique de inmediato — sin
+      // esto, un JWT emitido con el rol viejo seguía siendo válido (y
+      // "protect" lo aceptaba) hasta que expirara solo, hasta 7 días después.
+      data: { role, tokenVersion: { increment: 1 } },
       select: { id: true, name: true, email: true, role: true },
     });
     res.json({ user });
