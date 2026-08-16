@@ -9,6 +9,13 @@ async function registerVendedor(email) {
   return { token: res.body.token, user: res.body.user };
 }
 
+async function registerAgente(email) {
+  const res = await request(app).post("/api/auth/register").send({
+    name: "Agente Test", email, password: "clave123", role: "AGENTE",
+  });
+  return { token: res.body.token, user: res.body.user };
+}
+
 async function registerCliente(email) {
   const res = await request(app).post("/api/auth/register").send({
     name: "Cliente Test", email, password: "clave123",
@@ -86,6 +93,25 @@ describe("POST /api/properties", () => {
     const created = results.filter((r) => r.status === 201).length;
 
     expect(created).toBeLessThanOrEqual(3);
+  });
+
+  it("rechaza al AGENTE que ya publicó 10 propiedades (403)", async () => {
+    const { token } = await registerAgente("agente-limite@domify.test");
+
+    for (let i = 0; i < 10; i++) {
+      const res = await request(app)
+        .post("/api/properties")
+        .set("Authorization", `Bearer ${token}`)
+        .send(samplePropertyPayload({ title: `Propiedad de agente ${i}` }));
+      expect(res.status).toBe(201);
+    }
+
+    const res = await request(app)
+      .post("/api/properties")
+      .set("Authorization", `Bearer ${token}`)
+      .send(samplePropertyPayload({ title: "Undécima propiedad del agente" }));
+
+    expect(res.status).toBe(403);
   });
 
   it("crea la propiedad a nombre del usuario autenticado, aunque el body traiga otro userId", async () => {
@@ -220,6 +246,21 @@ describe("GET /api/properties", () => {
     expect(res.status).toBe(200);
     expect(res.body.properties.length).toBe(1);
     expect(res.body.pagination.total).toBe(1);
+  });
+
+  it("no expone el email del publicador en el listado público (privacidad)", async () => {
+    const owner = await registerVendedor("privacy-owner@domify.test");
+    await request(app)
+      .post("/api/properties")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send(samplePropertyPayload());
+
+    const res = await request(app).get("/api/properties");
+    const [prop] = res.body.properties;
+
+    expect(prop.publishedBy).toBeDefined();
+    expect(prop.publishedBy.name).toBe("Vendedor Test");
+    expect(prop.publishedBy.email).toBeUndefined();
   });
 
   describe("filtro ?ids=", () => {

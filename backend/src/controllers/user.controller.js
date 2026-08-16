@@ -20,7 +20,7 @@ const getPublicProfile = async (req, res) => {
         where:   { publishedById: id },
         orderBy: { createdAt: 'desc' },
         include: {
-          publishedBy: { select: { id: true, name: true, email: true, avatar: true } },
+          publishedBy: { select: { id: true, name: true, avatar: true } },
           _count:      { select: { favorites: true } },
         },
       }),

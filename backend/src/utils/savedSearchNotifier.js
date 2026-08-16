@@ -1,6 +1,10 @@
 const prisma = require('../config/prisma');
 const { buildPropertyWhere } = require('./propertyFilters');
 
+// Queries de búsqueda en vuelo por propiedad nueva. Antes era Promise.all
+// sobre TODAS las búsquedas guardadas del sistema sin tope de concurrencia.
+const CONCURRENCY = 5;
+
 // Se llama justo después de crear una propiedad nueva. Compara esa propiedad
 // contra los filtros de TODAS las búsquedas guardadas (reusando el mismo
 // buildPropertyWhere que usa el buscador, para garantizar el mismo criterio),
@@ -19,13 +23,24 @@ async function notifyMatchingSavedSearches(property, io) {
     // filtros), pero no hay razón para hacerlas en serie — el límite de
     // MAX_SAVED_SEARCHES_PER_USER búsquedas por usuario (ver
     // savedSearch.controller.js) mantiene esto acotado.
-    const results = await Promise.all(
-      searches.map(async (search) => {
-        const where = buildPropertyWhere(search.filters || {});
-        const count = await prisma.property.count({ where: { ...where, id: property.id } });
-        return count > 0 ? search : null;
-      })
-    );
+    //
+    // PERO tampoco hay que lanzarlas todas en paralelo de un golpe: el
+    // fan-out total es búsquedas × propiedad nueva, y una sola propiedad
+    // podía disparar miles de queries simultáneas a la base (DoS
+    // amplificable). Las procesamos por bloques de CONCURRENCY, que limita
+    // las queries en vuelo sin hacer la espera totalmente serial.
+    const results = [];
+    for (let i = 0; i < searches.length; i += CONCURRENCY) {
+      const chunk = searches.slice(i, i + CONCURRENCY);
+      const chunkResults = await Promise.all(
+        chunk.map(async (search) => {
+          const where = buildPropertyWhere(search.filters || {});
+          const count = await prisma.property.count({ where: { ...where, id: property.id } });
+          return count > 0 ? search : null;
+        })
+      );
+      results.push(...chunkResults);
+    }
     const matches = results.filter(Boolean);
 
     if (!matches.length) return;

@@ -8,11 +8,16 @@ const { stripHtmlTags } = require('../utils/sanitizeText');
 const { roundToZone } = require('../utils/geo');
 const prisma = new PrismaClient();
 
-// Mismo límite que el frontend (Publish.jsx) para el plan Vendedor. Se
+// Mismo límite que el frontend (Publish.jsx) para los planes con tope. Se
 // repite aquí porque el frontend solo deshabilita el botón — sin este
 // chequeo, cualquiera podía publicar sin límite llamando al endpoint
-// directamente.
-const VENDEDOR_PROPERTY_LIMIT = 3;
+// directamente. AGENTE también está topado (antes no tenía límite, y un
+// atacante podía crear propiedades sin tope para amplificar el fan-out de
+// saved searches).
+const ROLE_PROPERTY_LIMITS = {
+  VENDEDOR: 3,
+  AGENTE:   10,
+};
 
 // 1. CREAR UNA PROPIEDAD
 const createProperty = async (req, res) => {
@@ -54,12 +59,13 @@ const createProperty = async (req, res) => {
         }
       },
       include: {
-        publishedBy: { select: { id: true, name: true, email: true, avatar: true } }
+        publishedBy: { select: { id: true, name: true, avatar: true } }
       }
     };
 
     let newProperty;
-    if (req.user.role === 'VENDEDOR') {
+    const roleLimit = ROLE_PROPERTY_LIMITS[req.user.role];
+    if (roleLimit !== undefined) {
       // count() + create() en una transacción con advisory lock por usuario
       // (mismo patrón que createSavedSearch): sin esto, dos publicaciones en
       // paralelo del mismo Vendedor podían leer el mismo count por debajo
@@ -68,7 +74,7 @@ const createProperty = async (req, res) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
 
         const publishedCount = await tx.property.count({ where: { publishedById: userId } });
-        if (publishedCount >= VENDEDOR_PROPERTY_LIMIT) {
+        if (publishedCount >= roleLimit) {
           const limitError = new Error('LIMIT_REACHED');
           limitError.code = 'LIMIT_REACHED';
           throw limitError;
@@ -89,7 +95,7 @@ const createProperty = async (req, res) => {
   } catch (error) {
     if (error.code === 'LIMIT_REACHED') {
       return res.status(403).json({
-        error: `Alcanzaste el límite de ${VENDEDOR_PROPERTY_LIMIT} propiedades publicadas para tu plan.`
+        error: `Alcanzaste el límite de ${ROLE_PROPERTY_LIMITS[req.user?.role] || 'tu plan'} propiedades publicadas para tu plan.`
       });
     }
     console.error('❌ Error en createProperty:', error);
@@ -126,7 +132,7 @@ const getProperties = async (req, res) => {
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
         where: whereClause,
-        include: { publishedBy: { select: { id: true, name: true, email: true, avatar: true } } },
+        include: { publishedBy: { select: { id: true, name: true, avatar: true } } },
         // Desempatado por id: con createdAt solo, dos filas con el mismo
         // timestamp (algo real con datos sembrados en lote) pueden quedar en
         // cualquier orden entre una página y la siguiente — a veces
@@ -171,7 +177,7 @@ const getPropertyById = async (req, res) => {
       where: { id },
       include: {
         publishedBy: {
-          select: { id: true, name: true, email: true, avatar: true }
+          select: { id: true, name: true, avatar: true }
         }
       }
     });
