@@ -1,6 +1,9 @@
 const { cloudinary } = require('../config/cloudinary');
+const { isValidImageBuffer, uploadBufferToCloudinary } = require('../config/cloudinary');
 const prisma = require('../config/prisma');
 const { publicIdFromUrl } = require('../utils/cloudinaryPublicId');
+
+const PROPERTY_TRANSFORMATION = [{ width: 1200, height: 800, crop: 'limit', quality: 'auto' }];
 
 // POST /api/upload  — recibe hasta 6 imágenes y devuelve sus URLs
 const uploadImages = async (req, res) => {
@@ -9,12 +12,28 @@ const uploadImages = async (req, res) => {
       return res.status(400).json({ error: 'No se recibieron imágenes.' });
     }
 
-    // multer-storage-cloudinary ya subió los archivos; solo extraemos las URLs.
+    // Magic bytes — el mimetype ya lo filtró multer, pero lo puede falsear
+    // el cliente; la firma del archivo no. Sin esto, un archivo HTML (o un
+    // poliglota) nombrado ".png" se subía igual a Cloudinary.
+    for (const file of req.files) {
+      if (!isValidImageBuffer(file.buffer)) {
+        return res.status(400).json({ error: 'Archivo no válido: solo se aceptan imágenes JPG, PNG o WEBP.' });
+      }
+    }
+
+    // Subida manual con el buffer ya validado y transformación del folder.
+    const uploaded = await Promise.all(
+      req.files.map((file) => uploadBufferToCloudinary(file.buffer, {
+        folder:         'domify/properties',
+        transformation: PROPERTY_TRANSFORMATION,
+      }))
+    );
+
     // Registramos quién subió cada una — es lo único que después decide si
     // puede borrarla (ver deleteImage), no si la URL "aparece" en alguna
     // propiedad suya.
     const userId = req.user.userId;
-    const urls = req.files.map((f) => f.path);
+    const urls = uploaded.map((r) => r.secure_url);
     await prisma.uploadedImage.createMany({
       data: urls.map((url) => ({ url, publicId: publicIdFromUrl(url), userId })),
       skipDuplicates: true,

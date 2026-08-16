@@ -4,7 +4,7 @@ jest.mock("../../src/config/prisma", () => ({
 
 const jwt    = require("jsonwebtoken");
 const prisma = require("../../src/config/prisma");
-const { protect, requireRole, isOwner } = require("../../src/middlewares/auth.middleware");
+const { protect, attachUserIfPresent, requireRole, isOwner } = require("../../src/middlewares/auth.middleware");
 
 function mockRes() {
   const res = {};
@@ -76,6 +76,59 @@ describe("auth.middleware protect()", () => {
     await protect(req, res, next);
 
     expect(req.user.role).toBe("ADMIN");
+  });
+});
+
+describe("auth.middleware attachUserIfPresent()", () => {
+  it("sin token sigue como visitante anónimo (llama next)", async () => {
+    const req  = { headers: {} };
+    const res  = mockRes();
+    const next = jest.fn();
+
+    await attachUserIfPresent(req, res, next);
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("con token válido llena req.user con el rol fresco de la base", async () => {
+    prisma.user.findUnique.mockResolvedValue({ role: "AGENTE", tokenVersion: 0 });
+    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "AGENTE", tv: 0 }, process.env.JWT_SECRET);
+    const req   = { headers: { authorization: `Bearer ${token}` } };
+    const res   = mockRes();
+    const next  = jest.fn();
+
+    await attachUserIfPresent(req, res, next);
+
+    expect(req.user).toEqual({ userId: "user-1", email: "a@b.com", role: "AGENTE" });
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("con token REVOCADO (tokenVersion vieja) sigue como anónimo y no rompe la petición", async () => {
+    prisma.user.findUnique.mockResolvedValue({ role: "AGENTE", tokenVersion: 3 });
+    const token = jwt.sign({ id: "user-1", email: "a@b.com", role: "AGENTE", tv: 0 }, process.env.JWT_SECRET);
+    const req   = { headers: { authorization: `Bearer ${token}` } };
+    const res   = mockRes();
+    const next  = jest.fn();
+
+    await attachUserIfPresent(req, res, next);
+
+    expect(req.user).toBeUndefined();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("con token de un usuario borrado sigue como anónimo", async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    const token = jwt.sign({ id: "user-inexistente", email: "a@b.com", role: "AGENTE", tv: 0 }, process.env.JWT_SECRET);
+    const req   = { headers: { authorization: `Bearer ${token}` } };
+    const res   = mockRes();
+    const next  = jest.fn();
+
+    await attachUserIfPresent(req, res, next);
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalled();
   });
 });
 

@@ -7,7 +7,10 @@ services:
       POSTGRES_PASSWORD: domify_dev_password
       POSTGRES_DB: domify
     ports:
-      - "5432:5432"
+      # Solo localhost — sin esto, Postgres quedaba escuchando en todas las
+      # interfaces (0.0.0.0:5432) con el password de dev, alcanzable desde
+      # cualquier host de la red.
+      - "127.0.0.1:5432:5432"
     volumes:
       - domify_pgdata:/var/lib/postgresql
       # Crea también domify_test la primera vez que arranca el contenedor,

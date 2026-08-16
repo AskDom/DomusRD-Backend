@@ -5,6 +5,7 @@ const jwt    = require("jsonwebtoken");
 const { generateToken } = require("../utils/jwt");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { COOKIE_NAME, setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
+const { isValidImageBuffer, uploadBufferToCloudinary } = require("../config/cloudinary");
 
 const VALID_ROLES = ["CLIENTE", "VENDEDOR", "AGENTE"];
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
@@ -169,9 +170,22 @@ const updateAvatar = async (req, res) => {
       return res.status(400).json({ error: "No se recibió ninguna imagen." });
     }
 
+    // Magic bytes — el mimetype lo filtra multer pero es falseable; la firma
+    // del contenido no. Antes esto guardaba req.file.path directo, que con
+    // el storage anterior venía ya subido a Cloudinary sin verificar el
+    // archivo real (un HTML renombrado a ".png" pasaba).
+    if (!isValidImageBuffer(req.file.buffer)) {
+      return res.status(400).json({ error: "Archivo no válido: solo se aceptan imágenes JPG, PNG o WEBP." });
+    }
+
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder:         "domify/avatars",
+      transformation: [{ width: 200, height: 200, crop: "fill", gravity: "face", quality: "auto" }],
+    });
+
     const user = await prisma.user.update({
       where: { id: req.user.userId },
-      data:  { avatar: req.file.path },
+      data:  { avatar: result.secure_url },
     });
 
     res.json({ message: "Foto de perfil actualizada.", user: sanitizeUser(user) });

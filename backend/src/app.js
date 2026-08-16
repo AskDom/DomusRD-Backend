@@ -20,8 +20,12 @@ app.set("trust proxy", 1);
 // JSDoc) — con ~30 rutas repartidas en 10 archivos, mantenerlo como un
 // archivo separado es más simple de revisar en un solo lugar que anotar
 // cada route una por una.
-const openapiDocument = yaml.load(fs.readFileSync(path.join(__dirname, "..", "docs", "openapi.yaml"), "utf8"));
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument));
+// Solo se exponen fuera de producción: en producción la UI de Swagger
+// revelaría toda la superficie de la API a cualquiera.
+if (process.env.NODE_ENV !== "production") {
+  const openapiDocument = yaml.load(fs.readFileSync(path.join(__dirname, "..", "docs", "openapi.yaml"), "utf8"));
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument));
+}
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 // contentSecurityPolicy off: es una API JSON, no sirve HTML — el CSP que

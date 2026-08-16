@@ -67,14 +67,29 @@ const protect = async (req, res, next) => {
 // rechaza la petición si no hay token o es inválido. Para rutas públicas
 // (listado/detalle de propiedades) donde el controller necesita saber si
 // hay sesión para decidir cuánto detalle devolver (p.ej. ubicación exacta).
-const attachUserIfPresent = (req, res, next) => {
+//
+// Importante: valida el token contra la base (tokenVersion) igual que
+// protect(). Antes esto solo decodificaba el JWT sin mirar la DB, así que
+// un token de una sesión revocada (logout, cambio de contraseña/rol)
+// seguía "abriendo" la ubicación exacta hasta que expirara solo — hasta 7
+// días después. Es una consulta puntual por id (índice primario), no una
+// query pesada.
+const attachUserIfPresent = async (req, res, next) => {
   const { token } = extractToken(req);
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
-      req.user = { userId: decoded.id, email: decoded.email, role: decoded.role };
+      const user = await prisma.user.findUnique({
+        where:  { id: decoded.id },
+        select: { role: true, tokenVersion: true },
+      });
+      if (user && user.tokenVersion === decoded.tv) {
+        // Rol fresco de la base, no el del token.
+        req.user = { userId: decoded.id, email: decoded.email, role: user.role };
+      }
     } catch {
-      // Token inválido/expirado — seguimos como visitante anónimo, sin romper la petición.
+      // Token inválido/expirado, o usuario borrado/revocado — seguimos como
+      // visitante anónimo, sin romper la petición.
     }
   }
   next();
