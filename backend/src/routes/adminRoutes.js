@@ -2,7 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const { protect, requireRole } = require('../middlewares/auth.middleware');
 const {
-  getUsers, updateUserRole, deleteUser,
+  getUsers, updateUserRole, verifyUser, deleteUser,
   getAdminProperties, verifyProperty, deleteAdminProperty,
   getStats,
 } = require('../controllers/admin.controller');
@@ -15,9 +15,10 @@ router.use(requireRole('ADMIN'));
 router.get('/stats', getStats);
 
 // Usuarios
-router.get('/users',           getUsers);
-router.patch('/users/:id/role', updateUserRole);
-router.delete('/users/:id',    deleteUser);
+router.get('/users',             getUsers);
+router.patch('/users/:id/role',  updateUserRole);
+router.patch('/users/:id/verify', verifyUser);
+router.delete('/users/:id',      deleteUser);
 
 // Propiedades
 router.get('/properties',                 getAdminProperties);

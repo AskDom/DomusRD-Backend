@@ -42,6 +42,13 @@ enum Currency {
   DOP
 }
 
+enum VisitStatus {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+  COMPLETADA
+}
+
 // ── MODELS ───────────────────────────────────────────────────────────────
 
 model User {
@@ -64,6 +71,13 @@ model User {
   // días) aunque el dueño cerrara sesión o un admin le cambiara el rol.
   tokenVersion Int @default(0)
 
+  // Verificación de agente/vendedor otorgada por un admin — el mismo criterio
+  // de confianza que ya existía para propiedades (Property.verified), pero a
+  // nivel de cuenta: un perfil verificado sale con su sello en el detalle de
+  // propiedades y en su perfil público.
+  verified   Boolean    @default(false)
+  verifiedAt DateTime?
+
   properties      Property[]
   favorites       Favorite[]
   sentMessages    Message[]  @relation("MessagesSent")
@@ -73,6 +87,7 @@ model User {
   notifications   Notification[]
   pushTokens      PushToken[]
   uploadedImages  UploadedImage[]
+  visitsRequested Visit[]    @relation("VisitsRequested")
 
   @@map("users")
 }
@@ -156,6 +171,14 @@ model Property {
 
   images      String[]       // URLs de las fotos (portada = images[0])
   verified    Boolean        @default(false)
+  verifiedAt  DateTime?      // Cuándo un admin dio el visto bueno — para el panel y auditoría.
+
+  // Tour virtual / video de la propiedad (opcionales). videoUrl suele ser un
+  // enlace de YouTube/Vimeo; virtualTourUrl un embebible de Matterport, 3DVista
+  // u otra plataforma de recorridos 360°. No se suben a Cloudinary: son URLs
+  // que el vendedor pega y el frontend renderiza en un iframe o enlaza.
+  videoUrl       String?
+  virtualTourUrl String?
 
   publishedById String
   publishedBy   User         @relation(fields: [publishedById], references: [id], onDelete: Cascade)
@@ -163,6 +186,7 @@ model Property {
   favorites   Favorite[]
   messages    Message[]
   reviews     Review[]
+  visits      Visit[]
 
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -218,10 +242,17 @@ model Message {
   read       Boolean  @default(false)
   replyToId  String?
 
+  // Si el mensaje representa una solicitud de visita (o su confirmación/
+  // cancelación), apunta a la visita para poder pintar el estado y las
+  // acciones (confirmar/cancelar) directo en el hilo de mensajería.
+  visitId  String?
+  visit    Visit?   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
   createdAt  DateTime @default(now())
 
   @@index([fromId])
   @@index([toId])
+  @@index([visitId])
   @@map("messages")
 }
 
@@ -239,4 +270,35 @@ model Review {
 
   @@unique([userId, propertyId]) // un usuario solo puede reseñar una vez por propiedad
   @@map("reviews")
+}
+
+// Solicitud de visita a una propiedad — el interesado agenda una fecha/hora y
+// el dueño la confirma, cancela o marca como completada. Es un mensaje
+// estructurado (con estado) que acompaña al hilo de mensajería, no un
+// reemplazo: el interesado sigue pudiendo escribirle al vendedor aparte.
+model Visit {
+  id          String      @id @default(uuid())
+
+  // Quién agenda la visita (el interesado, nunca el dueño de la propiedad).
+  userId      String
+  user        User        @relation("VisitsRequested", fields: [userId], references: [id], onDelete: Cascade)
+
+  propertyId  String
+  property    Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  scheduledAt DateTime    // Cuándo pide visitar
+  message     String?     // Nota opcional del interesado
+
+  status      VisitStatus @default(PENDIENTE)
+  createdAt   DateTime    @default(now())
+
+  // Mensajes de DM que representan esta solicitud (el pedido inicial del
+  // interesado y la confirmación/cancelación del dueño, con visitId).
+  messages    Message[]
+
+  // Las dos caras del dashboard: "mis solicitudes" (userId) y "visitas a mis
+  // propiedades" (propertyId → publishedById).
+  @@index([userId])
+  @@index([propertyId])
+  @@map("visits")
 }

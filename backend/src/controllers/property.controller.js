@@ -8,6 +8,23 @@ const { stripHtmlTags } = require('../utils/sanitizeText');
 const { roundToZone } = require('../utils/geo');
 const prisma = new PrismaClient();
 
+// Fragmento reutilizable para el autor de una propiedad — el `verified` del
+// usuario alimenta el sello "agente verificado" en tarjetas y detalle.
+const PUBLISHER_SELECT = { select: { id: true, name: true, avatar: true, verified: true } };
+
+// Solo enlaces http(s) — nada de javascript:, data: ni protocolos raros
+// colados en el body para un iframe (XSS clásico con src "javascript:...").
+const isSafeHttpUrl = (value) => {
+  if (value === undefined || value === null || value === '') return true;
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 // Mismo límite que el frontend (Publish.jsx) para los planes con tope. Se
 // repite aquí porque el frontend solo deshabilita el botón — sin este
 // chequeo, cualquiera podía publicar sin límite llamando al endpoint
@@ -24,7 +41,8 @@ const createProperty = async (req, res) => {
   try {
     const {
       description, price, currency, city, sector,
-      lat, lng, rooms, baths, parking, type, status, images
+      lat, lng, rooms, baths, parking, type, status, images,
+      videoUrl, virtualTourUrl,
     } = req.body;
     const title = stripHtmlTags(req.body.title);
 
@@ -36,6 +54,10 @@ const createProperty = async (req, res) => {
       return res.status(400).json({
         error: 'Título, precio, ciudad, lat y lng son obligatorios.'
       });
+    }
+
+    if (!isSafeHttpUrl(videoUrl) || !isSafeHttpUrl(virtualTourUrl)) {
+      return res.status(400).json({ error: 'Los enlaces de video/tour deben ser URLs válidas.' });
     }
 
     const propertyData = {
@@ -54,12 +76,14 @@ const createProperty = async (req, res) => {
         type: type || 'APARTAMENTO',
         status: status || 'VENTA',
         images: images || [],
+        videoUrl: videoUrl || null,
+        virtualTourUrl: virtualTourUrl || null,
         publishedBy: {
           connect: { id: userId }
         }
       },
       include: {
-        publishedBy: { select: { id: true, name: true, avatar: true } }
+        publishedBy: PUBLISHER_SELECT
       }
     };
 
@@ -132,7 +156,7 @@ const getProperties = async (req, res) => {
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
         where: whereClause,
-        include: { publishedBy: { select: { id: true, name: true, avatar: true } } },
+        include: { publishedBy: PUBLISHER_SELECT },
         // Desempatado por id: con createdAt solo, dos filas con el mismo
         // timestamp (algo real con datos sembrados en lote) pueden quedar en
         // cualquier orden entre una página y la siguiente — a veces
@@ -176,9 +200,7 @@ const getPropertyById = async (req, res) => {
     const property = await prisma.property.findUnique({
       where: { id },
       include: {
-        publishedBy: {
-          select: { id: true, name: true, avatar: true }
-        }
+        publishedBy: PUBLISHER_SELECT
       }
     });
 
@@ -218,11 +240,21 @@ const updateProperty = async (req, res) => {
     const EDITABLE_FIELDS = [
       'title', 'description', 'price', 'currency', 'city', 'sector', 'type', 'status',
       'rooms', 'baths', 'parking', 'lat', 'lng', 'images',
+      'videoUrl', 'virtualTourUrl',
     ];
     const dataToUpdate = {};
     for (const field of EDITABLE_FIELDS) {
       if (req.body[field] !== undefined) dataToUpdate[field] = req.body[field];
     }
+
+    if (!isSafeHttpUrl(dataToUpdate.videoUrl) || !isSafeHttpUrl(dataToUpdate.virtualTourUrl)) {
+      return res.status(400).json({ error: 'Los enlaces de video/tour deben ser URLs válidas.' });
+    }
+
+    // El formulario manda "" para "quitar el video" — lo normalizamos a null
+    // para no guardar una URL vacía que el frontend trataría como válida.
+    if (dataToUpdate.videoUrl === "") dataToUpdate.videoUrl = null;
+    if (dataToUpdate.virtualTourUrl === "") dataToUpdate.virtualTourUrl = null;
 
     if (dataToUpdate.title !== undefined)       dataToUpdate.title       = stripHtmlTags(dataToUpdate.title);
     if (dataToUpdate.description !== undefined) dataToUpdate.description = stripHtmlTags(dataToUpdate.description);

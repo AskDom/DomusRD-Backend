@@ -33,6 +33,7 @@ const getMessages = async (req, res) => {
           from:     USER_SELECT,
           to:       USER_SELECT,
           property: { select: { id: true, title: true, images: true } },
+          visit:    { select: { id: true, status: true, scheduledAt: true, message: true } },
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take:    limit + 1, // uno de más solo para decidir hasMore

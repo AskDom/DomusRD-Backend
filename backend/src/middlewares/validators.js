@@ -189,6 +189,19 @@ const createPropertyValidator = [
       return true;
     }),
 
+  // Video/tour de la propiedad: URLs http(s) opcionales. No van a Cloudinary
+  // (son embebibles de YouTube/Matterport/etc.), así que el check es solo de
+  // protocolo — el controlador también lo valida como red de seguridad.
+  body('videoUrl')
+    .optional({ checkFalsy: true })
+    .isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('videoUrl debe ser una URL válida'),
+
+  body('virtualTourUrl')
+    .optional({ checkFalsy: true })
+    .isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('virtualTourUrl debe ser una URL válida'),
+
   body('userId')
     .optional()
     .isString().withMessage(STRING_MSG)
@@ -243,6 +256,16 @@ const updatePropertyValidator = [
       }
       return true;
     }),
+
+  body('videoUrl')
+    .optional({ checkFalsy: true })
+    .isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('videoUrl debe ser una URL válida'),
+
+  body('virtualTourUrl')
+    .optional({ checkFalsy: true })
+    .isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('virtualTourUrl debe ser una URL válida'),
 ];
 
 // Filtros de listado (GET /api/properties) — sin esto, algo como

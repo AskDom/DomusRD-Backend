@@ -9,7 +9,7 @@ const getPublicProfile = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where:  { id },
-      select: { id: true, name: true, avatar: true, role: true, createdAt: true },
+      select: { id: true, name: true, avatar: true, role: true, createdAt: true, verified: true },
     });
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado.' });
@@ -20,7 +20,7 @@ const getPublicProfile = async (req, res) => {
         where:   { publishedById: id },
         orderBy: { createdAt: 'desc' },
         include: {
-          publishedBy: { select: { id: true, name: true, avatar: true } },
+          publishedBy: { select: { id: true, name: true, avatar: true, verified: true } },
           _count:      { select: { favorites: true } },
         },
       }),

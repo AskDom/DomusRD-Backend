@@ -24,7 +24,7 @@ const getUsers = async (req, res) => {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true, name: true, email: true, avatar: true,
-          role: true, createdAt: true,
+          role: true, createdAt: true, verified: true, verifiedAt: true,
           _count: { select: { properties: true, favorites: true } },
         },
       }),
@@ -62,6 +62,28 @@ const updateUserRole = async (req, res) => {
   } catch (err) {
     console.error('updateUserRole:', err);
     res.status(500).json({ error: 'Error al actualizar rol.' });
+  }
+};
+
+// PATCH /api/admin/users/:id/verify
+// Verificación de cuenta (agentes/vendedores de confianza). A diferencia del
+// rol, esto no revoca sesiones: no toca tokenVersion. Solo guardamos cuándo
+// se dio (verifiedAt) para auditoría.
+const verifyUser = async (req, res) => {
+  try {
+    const { verified } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: {
+        verified: Boolean(verified),
+        verifiedAt: verified ? new Date() : null,
+      },
+      select: { id: true, name: true, email: true, verified: true, verifiedAt: true },
+    });
+    res.json({ user });
+  } catch (err) {
+    console.error('verifyUser:', err);
+    res.status(500).json({ error: 'Error al verificar usuario.' });
   }
 };
 
@@ -120,8 +142,8 @@ const verifyProperty = async (req, res) => {
     const { verified } = req.body;
     const property = await prisma.property.update({
       where: { id: req.params.id },
-      data: { verified: Boolean(verified) },
-      select: { id: true, title: true, verified: true },
+      data: { verified: Boolean(verified), verifiedAt: verified ? new Date() : null },
+      select: { id: true, title: true, verified: true, verifiedAt: true },
     });
     res.json({ property });
   } catch (err) {
@@ -172,4 +194,4 @@ const getStats = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, updateUserRole, deleteUser, getAdminProperties, verifyProperty, deleteAdminProperty, getStats };
+module.exports = { getUsers, updateUserRole, verifyUser, deleteUser, getAdminProperties, verifyProperty, deleteAdminProperty, getStats };

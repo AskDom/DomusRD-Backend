@@ -13,6 +13,7 @@ if (!/domify_test/.test(process.env.DATABASE_URL || "")) {
 // Borra en orden seguro para las foreign keys. Se usa entre tests de
 // integración para que cada archivo empiece con la base de datos de test limpia.
 async function resetDb() {
+  await prisma.visit.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.savedSearch.deleteMany();
   await prisma.review.deleteMany();

@@ -104,6 +104,13 @@ app.use("/api/reviews",    apiLimiter,    require(path.join(__dirname, "routes",
 app.use("/api/users",      apiLimiter,    require(path.join(__dirname, "routes", "userRoutes.js")));
 app.use("/api/saved-searches", apiLimiter, require(path.join(__dirname, "routes", "savedSearchRoutes.js")));
 app.use("/api/notifications", apiLimiter, require(path.join(__dirname, "routes", "notificationRoutes.js")));
+app.use("/api/visits",        apiLimiter, require(path.join(__dirname, "routes", "visitRoutes.js")));
+
+// ── TASAS DE CAMBIO ───────────────────────────────────────────────────────────
+// Pública y barata: solo lee una constante del entorno. La consumen la web y
+// la app móvil para mostrar equivalencias de precio en moneda local.
+const { getRates } = require(path.join(__dirname, "utils", "fx"));
+app.get("/api/rates", (req, res) => res.json(getRates()));
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
