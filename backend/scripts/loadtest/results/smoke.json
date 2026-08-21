@@ -1,0 +1,36 @@
+{
+  "label": "smoke",
+  "scenario": "browse",
+  "vus": 10,
+  "duration_s": 10,
+  "think_ms": [
+    0
+  ],
+  "base": "http://localhost:5001",
+  "total_requests": 33132,
+  "rps": 1325.3,
+  "errors_total": 30604,
+  "error_pct": 92.37,
+  "latency_ms": {
+    "p50": 1,
+    "p90": 2.2,
+    "p95": 3.2,
+    "p99": 8.2,
+    "max": 66.4,
+    "mean": 1.3
+  },
+  "by_status": {
+    "ok": 2528,
+    "http:429": 30604
+  },
+  "by_tag": {
+    "list": 18257,
+    "rates": 1645,
+    "search": 4989,
+    "filters": 3392,
+    "detail": 4849
+  },
+  "server_cpu_pct_avg": 44.7,
+  "server_cpu_pct_max": 147,
+  "server_rss_mb_max": 211
+}

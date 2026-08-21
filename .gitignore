@@ -1,5 +1,11 @@
 node_modules
-# Keep environment variables out of version control
+# Keep environment variables out of version control — todas las variantes,
+# no solo .env: .env.test, .env.production, .env.local, backups de editores, etc.
+# (los *.example sí se versionan a propósito, como plantilla)
 .env
+.env.*
+!.env.example
+!.env.test.example
+*.env
 
 /src/generated/prisma

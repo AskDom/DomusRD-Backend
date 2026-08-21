@@ -1,0 +1,35 @@
+{
+  "label": "stress-250vus",
+  "scenario": "browse",
+  "vus": 250,
+  "duration_s": 40,
+  "think_ms": [
+    0
+  ],
+  "base": "http://localhost:5002",
+  "total_requests": 26810,
+  "rps": 487.5,
+  "errors_total": 0,
+  "error_pct": 0,
+  "latency_ms": {
+    "p50": 153.3,
+    "p90": 277.6,
+    "p95": 310,
+    "p99": 408.8,
+    "max": 3460.2,
+    "mean": 168.9
+  },
+  "by_status": {
+    "ok": 26810
+  },
+  "by_tag": {
+    "detail": 4030,
+    "rates": 1344,
+    "list": 14775,
+    "filters": 2696,
+    "search": 3965
+  },
+  "server_cpu_pct_avg": 144.5,
+  "server_cpu_pct_max": 241.8,
+  "server_rss_mb_max": 268
+}

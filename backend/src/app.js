@@ -49,14 +49,12 @@ const isLocalhostOrigin = (origin) => /^http:\/\/localhost:\d+$/.test(origin);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) {
-      // En producción, rechazar requests sin origin (POSTMAN, iframes sandbox, curl).
-      // En desarrollo, permitir para facilitar pruebas.
-      if (process.env.NODE_ENV === "production") {
-        return callback(new Error("CORS: petición sin origin"));
-      }
-      return callback(null, true);
-    }
+    // Sin cabecera Origin no hay request cross-origin de navegador: así hablan
+    // las apps móviles (React Native nunca manda Origin), los health checks del
+    // hosting y curl. Rechazarlos acá los rompía todos con un 500 en
+    // producción. El CSRF sigue cubierto por la cookie SameSite=Lax + el
+    // header x-domify-client obligatorio en métodos inseguros (auth.middleware).
+    if (!origin) return callback(null, true);
     if (isLocalhostOrigin(origin)) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS bloqueado para: ${origin}`));

@@ -1,0 +1,38 @@
+{
+  "label": "prod-users-6000",
+  "scenario": "browse",
+  "vus": 6000,
+  "duration_s": 75,
+  "think_ms": [
+    2000,
+    8000
+  ],
+  "base": "http://localhost:5001",
+  "total_requests": 36387,
+  "rps": 404.3,
+  "errors_total": 603,
+  "error_pct": 1.66,
+  "latency_ms": {
+    "p50": 181.8,
+    "p90": 963.8,
+    "p95": 9156.4,
+    "p99": 19352.6,
+    "max": 19590.6,
+    "mean": 1117.5
+  },
+  "by_status": {
+    "ok": 35784,
+    "net:timeout": 484,
+    "net:ECONNRESET": 119
+  },
+  "by_tag": {
+    "rates": 1843,
+    "list": 20007,
+    "detail": 5470,
+    "filters": 3635,
+    "search": 5432
+  },
+  "server_cpu_pct_avg": 125.5,
+  "server_cpu_pct_max": 228.5,
+  "server_rss_mb_max": 283
+}

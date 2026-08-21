@@ -1,0 +1,36 @@
+{
+  "label": "stress-500vus-pool50",
+  "scenario": "browse",
+  "vus": 500,
+  "duration_s": 45,
+  "think_ms": [
+    0
+  ],
+  "base": "http://localhost:5002",
+  "total_requests": 22804,
+  "rps": 380.1,
+  "errors_total": 37,
+  "error_pct": 0.16,
+  "latency_ms": {
+    "p50": 344,
+    "p90": 485.9,
+    "p95": 514.2,
+    "p99": 5742.8,
+    "max": 15029.2,
+    "mean": 443.9
+  },
+  "by_status": {
+    "ok": 22767,
+    "net:timeout": 37
+  },
+  "by_tag": {
+    "detail": 3438,
+    "rates": 1130,
+    "list": 12550,
+    "search": 3352,
+    "filters": 2334
+  },
+  "server_cpu_pct_avg": 125.1,
+  "server_cpu_pct_max": 210.8,
+  "server_rss_mb_max": 266
+}

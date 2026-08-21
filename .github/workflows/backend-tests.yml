@@ -55,5 +55,11 @@ jobs:
       - name: Aplicar migraciones a la DB de test
         run: npx prisma migrate deploy
 
+      # Falla el PR si el schema.prisma quedó desalineado de las migraciones:
+      # es exactamente el bug que dejó a "cedula" sin migración y rompía un
+      # deploy limpio con P2022 (column does not exist) en login/registro.
+      - name: Verificar drift entre migraciones y schema
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+
       - name: Correr tests
         run: npx jest --runInBand

@@ -1,0 +1,266 @@
+{
+  "label": "ws-5000",
+  "type": "websocket",
+  "target_sockets": 5000,
+  "duration_s": 45,
+  "tokens_ok": 5000,
+  "connected_final": 5000,
+  "connect_failed": 0,
+  "disconnects_observed": 0,
+  "handshake_ms": {
+    "p50": 3,
+    "p90": 4,
+    "p99": 8,
+    "max": 20
+  },
+  "wall_s": 50,
+  "server_rss_mb_max": 223,
+  "server_cpu_pct_max": 54,
+  "rss_series": [
+    {
+      "t_sec": null,
+      "rss_mb": 187,
+      "connected": 197
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 187,
+      "connected": 395
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 187,
+      "connected": 592
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 188,
+      "connected": 788
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 188,
+      "connected": 985
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 188,
+      "connected": 1183
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 188,
+      "connected": 1380
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 188,
+      "connected": 1577
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 188,
+      "connected": 1774
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 189,
+      "connected": 1971
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 192,
+      "connected": 2169
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 195,
+      "connected": 2366
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 195,
+      "connected": 2560
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 197,
+      "connected": 2757
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 199,
+      "connected": 2955
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 201,
+      "connected": 3153
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 204,
+      "connected": 3349
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 204,
+      "connected": 3544
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 208,
+      "connected": 3742
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 210,
+      "connected": 3939
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 213,
+      "connected": 4136
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 213,
+      "connected": 4334
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 215,
+      "connected": 4530
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 217,
+      "connected": 4728
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 220,
+      "connected": 4923
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 221,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 221,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 221,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 221,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 221,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 221,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 221,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 223,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 194,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 194,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 195,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 196,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 197,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 197,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 197,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 197,
+      "connected": 5000
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 197,
+      "connected": 5000
+    }
+  ]
+}

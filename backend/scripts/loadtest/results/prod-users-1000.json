@@ -1,0 +1,37 @@
+{
+  "label": "prod-users-1000",
+  "scenario": "browse",
+  "vus": 1000,
+  "duration_s": 60,
+  "think_ms": [
+    2000,
+    8000
+  ],
+  "base": "http://localhost:5001",
+  "total_requests": 5837,
+  "rps": 77.8,
+  "errors_total": 5,
+  "error_pct": 0.09,
+  "latency_ms": {
+    "p50": 5.9,
+    "p90": 108.4,
+    "p95": 137.9,
+    "p99": 179.3,
+    "max": 195.4,
+    "mean": 25.6
+  },
+  "by_status": {
+    "ok": 5832,
+    "net:ECONNRESET": 5
+  },
+  "by_tag": {
+    "rates": 303,
+    "search": 857,
+    "filters": 559,
+    "list": 3295,
+    "detail": 823
+  },
+  "server_cpu_pct_avg": 23.5,
+  "server_cpu_pct_max": 71,
+  "server_rss_mb_max": 159
+}

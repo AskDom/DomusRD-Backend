@@ -1,0 +1,341 @@
+{
+  "label": "ws-600",
+  "type": "websocket",
+  "target_sockets": 600,
+  "duration_s": 60,
+  "tokens_ok": 600,
+  "connected_final": 600,
+  "connect_failed": 0,
+  "disconnects_observed": 0,
+  "handshake_ms": {
+    "p50": 4,
+    "p90": 5,
+    "p99": 6,
+    "max": 15
+  },
+  "wall_s": 65,
+  "server_rss_mb_max": 177,
+  "server_cpu_pct_max": 22,
+  "rss_series": [
+    {
+      "t_sec": null,
+      "rss_mb": 174,
+      "connected": 61
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 174,
+      "connected": 123
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 174,
+      "connected": 186
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 175,
+      "connected": 248
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 175,
+      "connected": 310
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 175,
+      "connected": 372
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 434
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 496
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 558
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 177,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 140,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 141,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 143,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    },
+    {
+      "t_sec": null,
+      "rss_mb": 142,
+      "connected": 600
+    }
+  ]
+}
