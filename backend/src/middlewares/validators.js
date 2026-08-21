@@ -46,6 +46,28 @@ const registerValidator = [
       if (val && !valid.includes(val)) throw new Error('Rol inválido');
       return true;
     }),
+
+  body('cedula')
+    .if((value, { req }) => {
+      const role = req.body.role?.toUpperCase();
+      return role === 'VENDEDOR' || role === 'AGENTE';
+    })
+    .notEmpty().withMessage('La cédula es requerida para vendedores y agentes')
+    .isString().withMessage(STRING_MSG)
+    .trim()
+    .matches(/^\d{11}$/).withMessage('La cédula debe tener exactamente 11 dígitos'),
+
+  body('cedula')
+    .if((value, { req }) => {
+      const role = req.body.role?.toUpperCase();
+      return role === 'VENDEDOR' || role === 'AGENTE';
+    })
+    .custom((value) => {
+      if (/^(\d)\1{10}$/.test(value)) {
+        throw new Error('La cédula no es válida');
+      }
+      return true;
+    }),
 ];
 
 const loginValidator = [
@@ -106,6 +128,12 @@ const updateMeValidator = [
     .optional()
     .isString().withMessage(STRING_MSG)
     .isLength({ min: 8, max: 72 }).withMessage('La contraseña debe tener entre 8 y 72 caracteres'),
+
+  body('cedula')
+    .optional({ checkFalsy: true })
+    .isString().withMessage(STRING_MSG)
+    .trim()
+    .matches(/^\d{11}$/).withMessage('La cédula debe tener exactamente 11 dígitos'),
 ];
 
 // ── PROPERTIES ────────────────────────────────────────────────────────────────

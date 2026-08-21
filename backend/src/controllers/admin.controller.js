@@ -1,17 +1,21 @@
 const prisma = require('../config/prisma');
 
+const MAX_LIMIT = 100;
+
 // ── USUARIOS ─────────────────────────────────────────────────────────────────
 
 // GET /api/admin/users
 const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', role = '' } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page = 1, limit: rawLimit = 20, search = '', role = '' } = req.query;
+    const limit = Math.min(Number(rawLimit) || 20, MAX_LIMIT);
+    const skip = (Number(page) - 1) * limit;
 
     const where = {
       ...(search && { OR: [
         { name:  { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
+        { cedula: { contains: search } },
       ]}),
       ...(role && { role }),
     };
@@ -20,10 +24,10 @@ const getUsers = async (req, res) => {
       prisma.user.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' },
         select: {
-          id: true, name: true, email: true, avatar: true,
+          id: true, name: true, email: true, avatar: true, cedula: true,
           role: true, createdAt: true, verified: true, verifiedAt: true,
           _count: { select: { properties: true, favorites: true } },
         },
@@ -106,8 +110,9 @@ const deleteUser = async (req, res) => {
 // GET /api/admin/properties
 const getAdminProperties = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', verified = '' } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page = 1, limit: rawLimit = 20, search = '', verified = '' } = req.query;
+    const limit = Math.min(Number(rawLimit) || 20, MAX_LIMIT);
+    const skip = (Number(page) - 1) * limit;
 
     const where = {
       ...(search && { OR: [
@@ -119,7 +124,7 @@ const getAdminProperties = async (req, res) => {
 
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
-        where, skip, take: Number(limit),
+        where, skip, take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           publishedBy: { select: { id: true, name: true, email: true, avatar: true } },

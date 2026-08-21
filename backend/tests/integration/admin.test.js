@@ -120,3 +120,60 @@ describe("DELETE /api/admin/users/:id", () => {
     expect(gone).toBeNull();
   });
 });
+
+describe("GET /api/admin/users — paginación y seguridad", () => {
+  it("limit por defecto es 20", async () => {
+    const admin = await registerAdmin("admin-limit-default@domify.test");
+    const users = Array.from({ length: 25 }, (_, i) => ({
+      id: require("crypto").randomUUID(),
+      name: `User ${i}`,
+      email: `default${i}@domify.test`,
+      password: "hashed",
+      role: "CLIENTE",
+    }));
+    await prisma.user.createMany({ data: users });
+
+    const res = await request(app)
+      .get("/api/admin/users")
+      .set("Authorization", `Bearer ${admin.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.users.length).toBe(20);
+    expect(res.body.total).toBe(26); // 25 bulk + 1 admin
+    expect(res.body.totalPages).toBe(2); // ceil(26/20) = 2
+  });
+
+  it("limit greater than 100 is clamped to 100", async () => {
+    const admin = await registerAdmin("admin-limit-clamp@domify.test");
+    // Insertar 110 usuarios directamente en la DB (sin bcrypt) para no exceder timeout
+    const users = Array.from({ length: 110 }, (_, i) => ({
+      id: require("crypto").randomUUID(),
+      name: `User ${i}`,
+      email: `bulk${i}@domify.test`,
+      password: "hashed",
+      role: "CLIENTE",
+    }));
+    await prisma.user.createMany({ data: users });
+
+    const res = await request(app)
+      .get("/api/admin/users?limit=9999")
+      .set("Authorization", `Bearer ${admin.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.users.length).toBe(100);
+    expect(res.body.total).toBe(111); // 110 bulk + 1 admin
+    expect(res.body.totalPages).toBe(2); // ceil(111/100) = 2
+  });
+
+  it("403 response does not leak user role (no tuRol field)", async () => {
+    const cliente = await registerCliente("noadmin@domify.test");
+
+    const res = await request(app)
+      .get("/api/admin/users")
+      .set("Authorization", `Bearer ${cliente.token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body).not.toHaveProperty("tuRol");
+    expect(res.body).toHaveProperty("error");
+  });
+});

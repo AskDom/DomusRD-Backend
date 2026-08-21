@@ -2,9 +2,14 @@ const request = require("supertest");
 const app     = require("../../src/app");
 const { prisma, resetDb } = require("../helpers/testDb");
 
+let _cedulaSeq = 0;
+function nextCedula() {
+  return String(++_cedulaSeq).padStart(11, '0');
+}
+
 async function registerVendedor(email) {
   const res = await request(app).post("/api/auth/register").send({
-    name: "Vendedor Test", email, password: "clave123", role: "VENDEDOR",
+    name: "Vendedor Test", email, password: "clave123", role: "VENDEDOR", cedula: nextCedula(),
   });
   return { token: res.body.token, user: res.body.user };
 }

@@ -54,8 +54,7 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ error: 'Sesión inválida, iniciá sesión de nuevo.' });
     }
 
-    // decoded tiene: { userId, role }  ← el rol viene en MAYÚSCULAS (VENDEDOR, AGENTE, CLIENTE)
-    req.user = { userId: decoded.id, email: decoded.email, role: user.role };
+    req.user = { userId: decoded.id, role: user.role };
     return next();
   } catch (error) {
     console.log('❌ JWT verify falló:', error.name, '-', error.message);
@@ -84,8 +83,7 @@ const attachUserIfPresent = async (req, res, next) => {
         select: { role: true, tokenVersion: true },
       });
       if (user && user.tokenVersion === decoded.tv) {
-        // Rol fresco de la base, no el del token.
-        req.user = { userId: decoded.id, email: decoded.email, role: user.role };
+        req.user = { userId: decoded.id, role: user.role };
       }
     } catch {
       // Token inválido/expirado, o usuario borrado/revocado — seguimos como
@@ -104,7 +102,6 @@ const requireRole = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) {
     return res.status(403).json({
       error: `Acceso denegado. Se requiere uno de los siguientes roles: ${roles.join(', ')}.`,
-      tuRol: req.user.role,
     });
   }
   next();

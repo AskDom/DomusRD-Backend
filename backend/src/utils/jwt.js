@@ -4,7 +4,7 @@ function generateToken(user) {
   return jwt.sign(
     // "tv" (tokenVersion) es lo que permite revocar este token antes de que
     // expire por su cuenta — ver protect() en auth.middleware.js.
-    { id: user.id, email: user.email, role: user.role, tv: user.tokenVersion },
+    { id: user.id, role: user.role, tv: user.tokenVersion },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d", algorithm: "HS256" }
   );

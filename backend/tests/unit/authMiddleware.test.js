@@ -50,7 +50,7 @@ describe("auth.middleware protect()", () => {
     await protect(req, res, next);
 
     expect(next).toHaveBeenCalled();
-    expect(req.user).toEqual({ userId: "user-1", email: "a@b.com", role: "VENDEDOR" });
+    expect(req.user).toEqual({ userId: "user-1", role: "VENDEDOR" });
   });
 
   it("rechaza un token con tokenVersion vieja (revocado por logout/cambio de rol/contraseña)", async () => {
@@ -100,7 +100,7 @@ describe("auth.middleware attachUserIfPresent()", () => {
 
     await attachUserIfPresent(req, res, next);
 
-    expect(req.user).toEqual({ userId: "user-1", email: "a@b.com", role: "AGENTE" });
+    expect(req.user).toEqual({ userId: "user-1", role: "AGENTE" });
     expect(next).toHaveBeenCalled();
   });
 

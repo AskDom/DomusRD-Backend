@@ -22,16 +22,29 @@ const loginPerAccountLimiter = rateLimit({
   legacyHeaders:         false,
   skipSuccessfulRequests: true,
   keyGenerator: (req) => String(req.body?.email || "").trim().toLowerCase() || "unknown",
-  skip: (req) => process.env.NODE_ENV === "development",
+  skip: (req) => process.env.NODE_ENV === "test",
+});
+
+// Forgot-password: máximo 3 intentos por hora por email (anti email bombing).
+// Si un atacante spammeara este endpoint, al menos no puede saturar la bandeja
+// de un usuario legítimo con correos de reseteo.
+const forgotPasswordLimiter = rateLimit({
+  windowMs:              60 * 60 * 1000,
+  max:                   3,
+  message:               { error: "Demasiadas solicitudes. Intenta de nuevo en una hora." },
+  standardHeaders:       true,
+  legacyHeaders:         false,
+  keyGenerator:          (req) => String(req.body?.email || "").trim().toLowerCase() || "unknown",
+  skip:                  (req) => process.env.NODE_ENV === "test",
 });
 
 router.post("/register",         registerValidator,         validate, register);
 router.post("/login",            loginPerAccountLimiter, loginValidator, validate, login);
-router.post("/forgot-password",  forgotPasswordValidator,    validate, forgotPassword);
+router.post("/forgot-password",  forgotPasswordLimiter, forgotPasswordValidator, validate, forgotPassword);
 router.post("/reset-password",   resetPasswordValidator,     validate, resetPassword);
 router.get("/me",        protect,                     me);
 router.patch("/me",      protect, updateMeValidator, validate, updateMe);
-router.post("/logout",                                logout);
+router.post("/logout",       protect,                     logout);
 router.post("/avatar",   protect, uploadAvatar.single("avatar"), updateAvatar);
 
 module.exports = router;

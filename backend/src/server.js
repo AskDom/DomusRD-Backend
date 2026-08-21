@@ -7,8 +7,12 @@ const cookie       = require("cookie");
 const prisma       = require("./config/prisma");
 const { COOKIE_NAME } = require("./utils/authCookie");
 
-if (!process.env.JWT_SECRET) {
-  console.error("❌ JWT_SECRET no está definida. Configúrala en .env antes de arrancar el servidor.");
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error("❌ JWT_SECRET debe tener al menos 32 caracteres. Configúrala en .env antes de arrancar el servidor.");
+  process.exit(1);
+}
+if (process.env.JWT_SECRET === "cambia-esto-por-un-secreto-largo-y-aleatorio") {
+  console.error("❌ JWT_SECRET es el valor por defecto del .env.example. Cámbialo por un valor aleatorio real.");
   process.exit(1);
 }
 
@@ -82,15 +86,14 @@ io.use(async (socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  console.log(`🔌 Conectado: ${socket.userId}`);
+  console.log(`🔌 Socket conectado: ${socket.id}`);
   onlineUsers.set(socket.userId, socket.id);
 
-  // Unirse a sala personal para recibir mensajes directos
   socket.join(`user:${socket.userId}`);
 
   socket.on("disconnect", () => {
     onlineUsers.delete(socket.userId);
-    console.log(`🔌 Desconectado: ${socket.userId}`);
+    console.log(`🔌 Socket desconectado: ${socket.id}`);
   });
 });
 

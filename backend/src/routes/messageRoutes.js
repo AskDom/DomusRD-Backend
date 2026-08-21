@@ -19,7 +19,7 @@ const sendMessageLimiter = rateLimit({
   standardHeaders:  true,
   legacyHeaders:    false,
   keyGenerator:     (req) => req.user.userId,
-  skip: (req) => process.env.NODE_ENV === "development",
+  skip: (req) => process.env.NODE_ENV === "test",
 });
 
 router.get('/',             getMessages);

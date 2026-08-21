@@ -1,12 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../config/prisma');
 const { isOwner } = require('../middlewares/auth.middleware');
 const { buildPropertyWhere, parseBbox } = require('../utils/propertyFilters');
 const { notifyMatchingSavedSearches } = require('../utils/savedSearchNotifier');
 const { stripHtmlTags } = require('../utils/sanitizeText');
-// Esto respalda en el backend lo que el frontend ya oculta visualmente: sin
-// esto, cualquiera podría ver la petición de red y sacar lat/lng exactos.
 const { roundToZone } = require('../utils/geo');
-const prisma = new PrismaClient();
 
 // Fragmento reutilizable para el autor de una propiedad — el `verified` del
 // usuario alimenta el sello "agente verificado" en tarjetas y detalle.

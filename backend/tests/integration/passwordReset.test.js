@@ -16,7 +16,12 @@ async function requestResetToken(email) {
   await request(app).post("/api/auth/forgot-password").send({ email });
   const call = sendPasswordResetEmail.mock.calls.find(([to]) => to === email);
   const resetUrl = call ? call[1] : null;
-  return resetUrl ? new URL(resetUrl).searchParams.get("token") : null;
+  if (!resetUrl) return null;
+  // El token ahora viene en el fragment (#token=...) en vez de query param.
+  // URL no parsea fragments, así que lo extraemos manualmente.
+  const hash = resetUrl.split("#")[1] || "";
+  const match = hash.match(/token=([^&]+)/);
+  return match ? match[1] : null;
 }
 
 beforeEach(async () => {

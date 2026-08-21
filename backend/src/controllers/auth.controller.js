@@ -12,6 +12,11 @@ const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
 
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
+// Capitaliza la primera letra de cada palabra ("juan perez" → "Juan Perez")
+function capitalizeWords(str) {
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Quita el password antes de enviar al frontend
 function sanitizeUser(user) {
   const { password, ...rest } = user;
@@ -21,7 +26,7 @@ function sanitizeUser(user) {
 // 1. REGISTRO DE USUARIOS
 const register = async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    const { email, password, name, role, cedula } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Nombre, correo y contraseña son requeridos" });
@@ -35,8 +40,24 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const finalRole = VALID_ROLES.includes(role?.toUpperCase()) ? role.toUpperCase() : "CLIENTE";
 
+    if (finalRole === "VENDEDOR" || finalRole === "AGENTE") {
+      if (!cedula) {
+        return res.status(400).json({ error: "La cédula es requerida para vendedores y agentes" });
+      }
+      const existingCedula = await prisma.user.findUnique({ where: { cedula } });
+      if (existingCedula) {
+        return res.status(409).json({ error: "Esa cédula ya está registrada" });
+      }
+    }
+
     const newUser = await prisma.user.create({
-      data: { email, name, password: hashedPassword, role: finalRole }
+      data: {
+        email,
+        name: capitalizeWords(name.trim()),
+        password: hashedPassword,
+        role: finalRole,
+        ...(cedula && (finalRole === "VENDEDOR" || finalRole === "AGENTE") ? { cedula } : {}),
+      }
     });
 
     const token = generateToken(newUser);
@@ -107,10 +128,10 @@ const me = async (req, res) => {
 // 4. ACTUALIZAR PERFIL (nombre, correo y/o contraseña)
 const updateMe = async (req, res) => {
   try {
-    const { name, email, currentPassword, newPassword } = req.body;
+    const { name, email, currentPassword, newPassword, cedula } = req.body;
     const userId = req.user.userId;
 
-    if (name === undefined && email === undefined && newPassword === undefined) {
+    if (name === undefined && email === undefined && newPassword === undefined && cedula === undefined) {
       return res.status(400).json({ error: "No hay nada que actualizar." });
     }
 
@@ -121,8 +142,20 @@ const updateMe = async (req, res) => {
     }
 
     const data = {};
-    if (name !== undefined) data.name = name.trim();
+    if (name !== undefined) data.name = capitalizeWords(name.trim());
     if (email !== undefined) data.email = email;
+
+    if (cedula !== undefined) {
+      if (cedula) {
+        const existingCedula = await prisma.user.findFirst({
+          where: { cedula, id: { not: userId } },
+        });
+        if (existingCedula) {
+          return res.status(409).json({ error: "Esa cédula ya está registrada." });
+        }
+      }
+      data.cedula = cedula || null;
+    }
 
     if (newPassword) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -213,7 +246,11 @@ const forgotPassword = async (req, res) => {
         data:  { resetToken, resetTokenExpiry },
       });
 
-      const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${rawToken}`;
+      // Fragment (#token=...) en vez de query param (?token=...): los fragments
+      // nunca se envían al servidor (ni en logs, ni en Referer headers), así
+      // que el token de reseteo no se filtra en access logs del backend ni en
+      // logs de proxies/CDN.
+      const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password#token=${rawToken}`;
       await sendPasswordResetEmail(user.email, resetUrl);
     }
 

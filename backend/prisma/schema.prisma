@@ -58,6 +58,7 @@ model User {
   name      String
   role      Role     @default(CLIENTE)
   avatar    String?
+  cedula    String?  @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -22,7 +22,7 @@ app.set("trust proxy", 1);
 // cada route una por una.
 // Solo se exponen fuera de producción: en producción la UI de Swagger
 // revelaría toda la superficie de la API a cualquiera.
-if (process.env.NODE_ENV !== "production") {
+if (process.env.SWAGGER_ENABLED === "true") {
   const openapiDocument = yaml.load(fs.readFileSync(path.join(__dirname, "..", "docs", "openapi.yaml"), "utf8"));
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument));
 }
@@ -30,7 +30,10 @@ if (process.env.NODE_ENV !== "production") {
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 // contentSecurityPolicy off: es una API JSON, no sirve HTML — el CSP que
 // importa es el del frontend (ver public/index.html en el repo web).
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: false,
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+}));
 // Lista explícita de orígenes confiables. FRONTEND_URL puede traer varios
 // separados por coma (ej. dominio propio + preview de Vercel del equipo),
 // pero cada uno se compara por igualdad exacta — nunca por substring, para
@@ -46,14 +49,21 @@ const isLocalhostOrigin = (origin) => /^http:\/\/localhost:\d+$/.test(origin);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      // En producción, rechazar requests sin origin (POSTMAN, iframes sandbox, curl).
+      // En desarrollo, permitir para facilitar pruebas.
+      if (process.env.NODE_ENV === "production") {
+        return callback(new Error("CORS: petición sin origin"));
+      }
+      return callback(null, true);
+    }
     if (isLocalhostOrigin(origin)) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS bloqueado para: ${origin}`));
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
 
 // ── HEALTH CHECK ──────────────────────────────────────────────────────────────
@@ -70,7 +80,7 @@ const authLimiter = rateLimit({
   message:          { error: "Demasiados intentos. Intenta de nuevo en 15 minutos." },
   standardHeaders:  true,
   legacyHeaders:    false,
-  skip: (req) => process.env.NODE_ENV === "development",
+  skip: (req) => process.env.NODE_ENV === "test",
 });
 
 // API general: máximo 100 requests por minuto por IP
@@ -80,7 +90,7 @@ const apiLimiter = rateLimit({
   message:          { error: "Demasiadas peticiones. Intenta de nuevo en un momento." },
   standardHeaders:  true,
   legacyHeaders:    false,
-  skip: (req) => process.env.NODE_ENV === "development",
+  skip: (req) => process.env.NODE_ENV === "test",
 });
 
 // Upload: máximo 20 imágenes por hora por IP
@@ -90,7 +100,7 @@ const uploadLimiter = rateLimit({
   message:          { error: "Límite de subida de imágenes alcanzado. Intenta en una hora." },
   standardHeaders:  true,
   legacyHeaders:    false,
-  skip: (req) => process.env.NODE_ENV === "development",
+  skip: (req) => process.env.NODE_ENV === "test",
 });
 
 // ── RUTAS ─────────────────────────────────────────────────────────────────────
